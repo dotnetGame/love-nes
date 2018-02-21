@@ -67,12 +67,32 @@ namespace LoveNes
                 {
                     var offset = (ushort)(address - slave.Key);
                     if (offset >= slave.Value.MemoryMapSize)
-                        throw new AccessViolationException($"address: 0x{address:X} is out of slave memory range.");
+                    {
+                        // throw new AccessViolationException($"address: 0x{address:X} is out of slave memory range.");
+                        return (DummySlave.Instance, offset);
+                    }
+
                     return (slave.Value, offset);
                 }
             }
 
             throw new AccessViolationException($"cannot find slave in address: 0x{address:X}.");
+        }
+
+        private class DummySlave : IBusSlave
+        {
+            public static DummySlave Instance { get; } = new DummySlave();
+
+            ushort IBusSlave.MemoryMapSize => ushort.MaxValue;
+
+            byte IBusSlave.Read(ushort address)
+            {
+                return 0;
+            }
+
+            void IBusSlave.Write(ushort address, byte value)
+            {
+            }
         }
 
         private struct Range

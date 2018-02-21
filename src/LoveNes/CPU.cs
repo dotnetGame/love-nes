@@ -430,11 +430,25 @@ namespace LoveNes
                     break;
 
                 case MicroCode.ADC:
-                    Registers.A = (byte)(Registers.A + _addressResult + Status.C);
+                    {
+                        var result = (ushort)(Registers.A + _addressResult + Status.C);
+                        UpdateCVN(Registers.A, _addressResult, result);
+                        Registers.A = (byte)result;
+                        _nextMicroCode = MicroCode.None;
+                    }
+
                     break;
                 default:
                     throw new InvalidProgramException($"invalid micro code: 0x{code:X}.");
             }
+        }
+
+        private void UpdateCVN(byte a, byte b, ushort result)
+        {
+            Status.C = (byte)(result > 0xFF ? 1 : 0);
+            Status.V = (byte)(~(a ^ b) & (a ^ b) & 0x80);
+            Status.N = (byte)((result & 0x80) >> 7);
+            Status.Z = (byte)(result == 0 ? 1 : 0);
         }
 
         void IClockSink.OnTick()
