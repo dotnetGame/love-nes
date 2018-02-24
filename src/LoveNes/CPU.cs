@@ -41,8 +41,26 @@ namespace LoveNes
         private void ExecuteOpCode()
         {
             if (_nextMicroCode == MicroCode.None)
+            {
+                if (_nextOpCodeStatus == OpCodeStatus.None)
+                {
+                    _masterClient.Read(Registers.PC++);
+                    ExecuteOpCode((OpCode)_masterClient.Value);
+                }
+
                 ExecuteOpCode(_nextOpCodeStatus);
+            }
+
             ExecuteMicroCode(_nextMicroCode);
+        }
+
+        private void ExecuteOpCode(OpCode opCode)
+        {
+        }
+
+        public enum OpCode : byte
+        {
+            ADC_Addressing_Immediate = 0x69
         }
 
         public enum OpCodeStatus : byte
@@ -451,12 +469,29 @@ namespace LoveNes
             Status.Z = (byte)(result == 0 ? 1 : 0);
         }
 
+        private static readonly ushort[] _interruptVectors = new ushort[]
+        {
+            0xFFFA, 0xFFFC, 0xFFFE, 0xFFFE
+        };
+
+        private void Interrupt(InterruptType interrupt)
+        {
+            Status.I = 1;
+            var vector = _interruptVectors[(byte)interrupt];
+            _masterClient.Read(vector);
+            Registers.PC = _masterClient.Value;
+        }
+
         void IClockSink.OnTick()
         {
+            ExecuteOpCode();
         }
 
         void IClockSink.OnPowerUp()
         {
+            _nextOpCodeStatus = OpCodeStatus.None;
+            _nextMicroCode = MicroCode.None;
+
             // see also: https://wiki.nesdev.com/w/index.php/CPU_power_up_state
             Status.Value = 0x34;
 
@@ -475,6 +510,7 @@ namespace LoveNes
 
             // TODO:
             // All 15 bits of noise channel LFSR = $0000[3].The first time the LFSR is clocked from the all-0s state, it will shift in a 1.
+            Interrupt(InterruptType.Reset);
         }
 
         void IClockSink.OnReset()
@@ -486,7 +522,19 @@ namespace LoveNes
             // TODO:
             // APU mode in $4017 was unchanged
             // APU was silenced($4015 = 0)
+            Interrupt(InterruptType.Reset);
         }
+    }
+
+    /// <summary>
+    /// 中断类型
+    /// </summary>
+    public enum InterruptType : byte
+    {
+        NMI,
+        Reset,
+        IRQ,
+        BRK
     }
 
     /// <summary>
