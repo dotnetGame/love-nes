@@ -106,6 +106,11 @@ namespace LoveNes.IO
             return value.ToArray();
         }
 
+        public ReadOnlySpan<byte> ReadAsSpan(int length)
+        {
+            return ReadBytes(length);
+        }
+
         public byte[] ReadAsByteArray()
         {
             var bytes = _span.ToArray();
@@ -120,7 +125,7 @@ namespace LoveNes.IO
             return bytes;
         }
 
-        private void Advance(int count)
+        public void Advance(int count)
         {
             _span = _span.Slice(count);
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using LoveNes.IO;
 
 namespace LoveNes.Cli
@@ -10,9 +11,10 @@ namespace LoveNes.Cli
         {
             Console.WriteLine("Hello World!");
 
-            var file = NesFile.FromStream(File.OpenRead("lj65.nes"));
+            var file = NesFile.FromStream(File.OpenRead("lj65.nes")).Result;
 
             var system = new NesSystem();
+            system.Cartridge.InsertNesFile(file);
             system.PowerUp();
         }
     }

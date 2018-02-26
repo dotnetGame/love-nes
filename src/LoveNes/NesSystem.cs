@@ -19,6 +19,8 @@ namespace LoveNes
         private readonly CPU _cpu;
         private readonly OnChipRAM _onChipRAM;
 
+        public Cartridge Cartridge { get; }
+
         public NesSystem()
         {
             _clock = new Clock();
@@ -35,6 +37,10 @@ namespace LoveNes
             _bus.AddSlave(0x0800, _onChipRAM);
             _bus.AddSlave(0x1000, _onChipRAM);
             _bus.AddSlave(0x1800, _onChipRAM);
+
+            // 板卡
+            Cartridge = new Cartridge();
+            _bus.AddSlave(0x4020, Cartridge);
         }
 
         /// <summary>
