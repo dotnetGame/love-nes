@@ -17,7 +17,7 @@ namespace LoveNes
         public Cartridge()
         {
             CPUSlave = new CPUSlaveProvidere(this);
-            PPUSlave = new CPUSlaveProvidere(this);
+            PPUSlave = new PPUSlaveProvidere(this);
         }
 
         public void InsertNesFile(NesFile nesFile)

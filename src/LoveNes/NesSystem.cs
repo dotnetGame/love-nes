@@ -46,6 +46,7 @@ namespace LoveNes
             Cartridge = new Cartridge();
             _cpuBus.AddSlave(0x4020, Cartridge.CPUSlave);
 
+            _ppuBus = new Bus();
             _ppu = new PPU();
             _clock.AddSink(_ppu);
             for (ushort i = 0x2000; i < 0x3FFF; i += 8)

@@ -10,27 +10,23 @@ namespace LoveNes
 
         void IClockSink.OnPowerUp()
         {
-            throw new NotImplementedException();
         }
 
         void IClockSink.OnReset()
         {
-            throw new NotImplementedException();
         }
 
         void IClockSink.OnTick()
         {
-            throw new NotImplementedException();
         }
 
         byte IBusSlave.Read(ushort address)
         {
-            throw new NotImplementedException();
+            return 0;
         }
 
         void IBusSlave.Write(ushort address, byte value)
         {
-            throw new NotImplementedException();
         }
     }
 }
