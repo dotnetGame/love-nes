@@ -84,6 +84,10 @@ namespace LoveNes
                     return OpCodeStatus.LDA_1_Absolute;
                 case OpCode.JSR_Absolute:
                     return OpCodeStatus.JSR_1_Absolute;
+                case OpCode.BIT_Absolute:
+                    return OpCodeStatus.BIT_1_Absolute;
+                case OpCode.BPL_Relative:
+                    return OpCodeStatus.BPL_1_Relative;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -92,9 +96,19 @@ namespace LoveNes
         public enum OpCode : byte
         {
             /// <summary>
+            /// Branch if Positive
+            /// </summary>
+            BPL_Relative = 0x10,
+
+            /// <summary>
             /// Jump to Subroutine
             /// </summary>
             JSR_Absolute = 0x20,
+
+            /// <summary>
+            /// Bit Test
+            /// </summary>
+            BIT_Absolute = 0x2C,
 
             ADC_Immediate = 0x69,
 
@@ -138,9 +152,14 @@ namespace LoveNes
         {
             None,
 
+            BPL_1_Relative,
+            BPL_2_Relative,
+
             JSR_1_Absolute,
             JSR_2_Absolute,
             JSR_3_Absolute,
+
+            BIT_1_Absolute,
 
             ADC_1_Addressing_Immediate,
             ADC_1_Addressing_ZeroPage,
@@ -233,7 +252,7 @@ namespace LoveNes
                     _addressDst = AddressDestination.A;
                     _addressOper = AddressOperation.None;
                     _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
                 case OpCodeStatus.JSR_1_Absolute:
                     _tempValue = (byte)((Registers.PC + 1) >> 8);
                     return (MicroCode.Push, OpCodeStatus.JSR_2_Absolute);
@@ -245,6 +264,18 @@ namespace LoveNes
                     _addressOper = AddressOperation.None;
                     _addressDir = AddressDirection.Jump;
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.BIT_1_Absolute:
+                    _addressDst = AddressDestination.None;
+                    _addressOper = AddressOperation.BitTest;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.BPL_1_Relative:
+                    return (MicroCode.Nop, Status.N == 0 ? OpCodeStatus.BPL_2_Relative : OpCodeStatus.None);
+                case OpCodeStatus.BPL_2_Relative:
+                    _addressDst = AddressDestination.PC;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Jump;
+                    return (MicroCode.Relative, OpCodeStatus.None);
                 default:
                     throw new InvalidProgramException($"invalid op code status: 0x{code:X}.");
             }
@@ -254,9 +285,13 @@ namespace LoveNes
         {
             None,
 
+            Nop,
+
             Register,
 
             Immediate,
+
+            Relative,
 
             ZeroPage_1,
             ZeroPage_2,
@@ -307,12 +342,20 @@ namespace LoveNes
         {
             switch (code)
             {
+                case MicroCode.Nop:
+                    return MicroCode.None;
+
                 case MicroCode.Register:
                     DispatchRegisterAddressing();
                     return MicroCode.None;
 
                 case MicroCode.Immediate:
                     DispatchMemoryAddressing(Registers.PC++);
+                    return MicroCode.None;
+
+                case MicroCode.Relative:
+                    _masterClient.Read(Registers.PC++);
+                    DispatchMemoryAddressing((ushort)(Registers.PC + (sbyte)_masterClient.Value));
                     return MicroCode.None;
 
                 case MicroCode.Absolute_1:
@@ -484,6 +527,7 @@ namespace LoveNes
 
         private enum AddressDestination
         {
+            None,
             X,
             A,
             PC
@@ -499,7 +543,8 @@ namespace LoveNes
         private enum AddressOperation
         {
             None,
-            Inc
+            Inc,
+            BitTest
         }
 
         private void DispatchRegisterAddressing()
@@ -525,6 +570,9 @@ namespace LoveNes
                     _masterClient.Read(address);
                     switch (_addressDst)
                     {
+                        case AddressDestination.None:
+                            DoOperation(_masterClient.Value, true);
+                            break;
                         case AddressDestination.X:
                             Registers.X = DoOperation(_masterClient.Value, true);
                             break;
@@ -574,6 +622,15 @@ namespace LoveNes
                 case AddressOperation.Inc:
                     value += 1;
                     if (affectFlag) UpdateNZ(value);
+                    return value;
+                case AddressOperation.BitTest:
+                    if (affectFlag)
+                    {
+                        Status.Z = (byte)((Registers.A & value) == 0 ? 1 : 0);
+                        Status.N = (byte)((value & 0x80) >> 7);
+                        Status.V = (byte)((value & 0x40) >> 6);
+                    }
+
                     return value;
                 default:
                     throw new ArgumentException(nameof(_addressOper));

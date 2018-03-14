@@ -15,32 +15,46 @@ namespace LoveNes
         public const ushort OnChipRAMSize = 0x800;
 
         private readonly Clock _clock;
-        private readonly Bus _bus;
+        private readonly Bus _cpuBus;
         private readonly CPU _cpu;
-        private readonly OnChipRAM _onChipRAM;
+        private readonly OnChipRAM _cpuOnChipRAM;
+
+        private readonly PPU _ppu;
+        private readonly Bus _ppuBus;
+        private readonly OnChipRAM _ppuOnChipRAM;
 
         public Cartridge Cartridge { get; }
 
         public NesSystem()
         {
             _clock = new Clock();
-            _bus = new Bus();
+            _cpuBus = new Bus();
 
             // CPU
-            _cpu = new CPU(_bus.MasterClient);
+            _cpu = new CPU(_cpuBus.MasterClient);
             _clock.AddSink(_cpu);
 
             // 片上 RAM
-            _onChipRAM = new OnChipRAM(OnChipRAMSize);
-            _clock.AddSink(_onChipRAM);
-            _bus.AddSlave(0x0000, _onChipRAM);
-            _bus.AddSlave(0x0800, _onChipRAM);
-            _bus.AddSlave(0x1000, _onChipRAM);
-            _bus.AddSlave(0x1800, _onChipRAM);
+            _cpuOnChipRAM = new OnChipRAM(OnChipRAMSize);
+            _clock.AddSink(_cpuOnChipRAM);
+            _cpuBus.AddSlave(0x0000, _cpuOnChipRAM);
+            _cpuBus.AddSlave(0x0800, _cpuOnChipRAM);
+            _cpuBus.AddSlave(0x1000, _cpuOnChipRAM);
+            _cpuBus.AddSlave(0x1800, _cpuOnChipRAM);
 
             // 板卡
             Cartridge = new Cartridge();
-            _bus.AddSlave(0x4020, Cartridge);
+            _cpuBus.AddSlave(0x4020, Cartridge.CPUSlave);
+
+            _ppu = new PPU();
+            _clock.AddSink(_ppu);
+            for (ushort i = 0x2000; i < 0x3FFF; i += 8)
+                _cpuBus.AddSlave(i, _ppu);
+
+            _ppuOnChipRAM = new OnChipRAM(OnChipRAMSize);
+            _clock.AddSink(_ppuOnChipRAM);
+            _ppuBus.AddSlave(0x0000, Cartridge.PPUSlave);
+            _ppuBus.AddSlave(0x2000, _ppuOnChipRAM);
         }
 
         /// <summary>

@@ -6,14 +6,18 @@ using LoveNes.Mappers;
 
 namespace LoveNes
 {
-    public class Cartridge : IBusSlave
+    public class Cartridge
     {
-        ushort IBusSlave.MemoryMapSize => 0xBFE0;
-
         private Mapper0 _mapper;
+
+        public IBusSlave CPUSlave { get; }
+
+        public IBusSlave PPUSlave { get; }
 
         public Cartridge()
         {
+            CPUSlave = new CPUSlaveProvidere(this);
+            PPUSlave = new CPUSlaveProvidere(this);
         }
 
         public void InsertNesFile(NesFile nesFile)
@@ -21,14 +25,48 @@ namespace LoveNes
             _mapper = new Mapper0(nesFile);
         }
 
-        byte IBusSlave.Read(ushort address)
+        private class CPUSlaveProvidere : IBusSlave
         {
-            return _mapper.Read(address);
+            ushort IBusSlave.MemoryMapSize => 0xBFE0;
+
+            private readonly Cartridge _cartridge;
+
+            public CPUSlaveProvidere(Cartridge cartridge)
+            {
+                _cartridge = cartridge;
+            }
+
+            byte IBusSlave.Read(ushort address)
+            {
+                return _cartridge._mapper.Read(address);
+            }
+
+            void IBusSlave.Write(ushort address, byte value)
+            {
+                _cartridge._mapper.Write(address, value);
+            }
         }
 
-        void IBusSlave.Write(ushort address, byte value)
+        private class PPUSlaveProvidere : IBusSlave
         {
-            _mapper.Write(address, value);
+            ushort IBusSlave.MemoryMapSize => 0x2000;
+
+            private readonly Cartridge _cartridge;
+
+            public PPUSlaveProvidere(Cartridge cartridge)
+            {
+                _cartridge = cartridge;
+            }
+
+            byte IBusSlave.Read(ushort address)
+            {
+                return _cartridge._mapper.Read(address);
+            }
+
+            void IBusSlave.Write(ushort address, byte value)
+            {
+                _cartridge._mapper.Write(address, value);
+            }
         }
     }
 }
