@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Text;
 
 namespace LoveNes
@@ -54,7 +56,10 @@ namespace LoveNes
                     else
                     {
                         _readingOpCode = false;
-                        _nextOpCodeStatus = ExecuteOpCode((OpCode)_masterClient.Value);
+                        var opCode = (OpCode)_masterClient.Value;
+
+                        Console.WriteLine(opCode);
+                        _nextOpCodeStatus = ExecuteOpCode(opCode);
                     }
                 }
 
@@ -88,6 +93,8 @@ namespace LoveNes
                     return OpCodeStatus.BIT_1_Absolute;
                 case OpCode.BPL_Relative:
                     return OpCodeStatus.BPL_1_Relative;
+                case OpCode.TXA_Implied:
+                    return OpCodeStatus.TXA_1_Implied;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -116,6 +123,11 @@ namespace LoveNes
             /// Set Interrupt Disable
             /// </summary>
             SEI_Implied = 0x78,
+
+            /// <summary>
+            /// Transfer X to Accumulator
+            /// </summary>
+            TXA_Implied = 0x8A,
 
             /// <summary>
             /// Store X Register - Absolute
@@ -172,6 +184,8 @@ namespace LoveNes
             ADC_2,
 
             SEI_1_Implied,
+
+            TXA_1_Implied,
 
             STX_1_Absolute,
 
@@ -241,6 +255,8 @@ namespace LoveNes
                     _addressOper = AddressOperation.None;
                     _addressDir = AddressDirection.Read;
                     return (MicroCode.Immediate, OpCodeStatus.None);
+                case OpCodeStatus.TXA_1_Implied:
+                    return (MicroCode.TXA, OpCodeStatus.None);
                 case OpCodeStatus.TXS_1_Implied:
                     return (MicroCode.TXS, OpCodeStatus.None);
                 case OpCodeStatus.INX_1_Implied:
@@ -270,7 +286,16 @@ namespace LoveNes
                     _addressDir = AddressDirection.Read;
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
                 case OpCodeStatus.BPL_1_Relative:
-                    return (MicroCode.Nop, Status.N == 0 ? OpCodeStatus.BPL_2_Relative : OpCodeStatus.None);
+                    if (Status.N)
+                    {
+                        return (MicroCode.Nop, OpCodeStatus.BPL_2_Relative);
+                    }
+                    else
+                    {
+                        Registers.PC++;
+                        return (MicroCode.Nop, OpCodeStatus.None);
+                    }
+
                 case OpCodeStatus.BPL_2_Relative:
                     _addressDst = AddressDestination.PC;
                     _addressOper = AddressOperation.None;
@@ -333,6 +358,7 @@ namespace LoveNes
 
             SEI,
 
+            TXA,
             TXS,
 
             CLD
@@ -512,13 +538,16 @@ namespace LoveNes
                     _masterClient.Write((ushort)(0x100u + Registers.S--));
                     return MicroCode.None;
                 case MicroCode.SEI:
-                    Status.I = 1;
+                    Status.I = true;
+                    return MicroCode.None;
+                case MicroCode.TXA:
+                    Registers.A = Registers.X;
                     return MicroCode.None;
                 case MicroCode.TXS:
                     Registers.S = Registers.X;
                     return MicroCode.None;
                 case MicroCode.CLD:
-                    Status.D = 0;
+                    Status.D = false;
                     return MicroCode.None;
                 default:
                     throw new InvalidProgramException($"invalid micro code: 0x{code:X}.");
@@ -626,9 +655,9 @@ namespace LoveNes
                 case AddressOperation.BitTest:
                     if (affectFlag)
                     {
-                        Status.Z = (byte)((Registers.A & value) == 0 ? 1 : 0);
-                        Status.N = (byte)((value & 0x80) >> 7);
-                        Status.V = (byte)((value & 0x40) >> 6);
+                        Status.Z = (Registers.A & value) == 0;
+                        Status.N = ((value & 0x80) >> 7) != 0;
+                        Status.V = ((value & 0x40) >> 6) != 0;
                     }
 
                     return value;
@@ -639,14 +668,14 @@ namespace LoveNes
 
         private void UpdateCV(byte a, byte b, ushort result)
         {
-            Status.C = (byte)(result > 0xFF ? 1 : 0);
-            Status.V = (byte)(~(a ^ b) & (a ^ b) & 0x80);
+            Status.C = result > 0xFF;
+            Status.V = (~(a ^ b) & (a ^ b) & 0x80) != 0;
         }
 
         private void UpdateNZ(byte result)
         {
-            Status.N = (byte)((result & 0x80) >> 7);
-            Status.Z = (byte)(result == 0 ? 1 : 0);
+            Status.N = ((result & 0x80) >> 7) != 0;
+            Status.Z = result == 0;
         }
 
         private static readonly ushort[] _interruptVectors = new ushort[]
@@ -656,7 +685,7 @@ namespace LoveNes
 
         private void Interrupt(InterruptType interrupt)
         {
-            Status.I = 1;
+            Status.I = true;
             var vector = _interruptVectors[(byte)interrupt];
             Registers.PC = ReadUShort(vector);
         }
@@ -705,7 +734,7 @@ namespace LoveNes
         {
             // see also: https://wiki.nesdev.com/w/index.php/CPU_power_up_state
             Registers.S -= 3;
-            Status.I = 1;
+            Status.I = true;
 
             // TODO:
             // APU mode in $4017 was unchanged
@@ -761,7 +790,7 @@ namespace LoveNes
     /// </summary>
     public struct ProcessorStatus
     {
-        private byte _value;
+        private BitVector8 _value;
 
         /// <summary>
         /// 值
@@ -769,43 +798,43 @@ namespace LoveNes
         public byte Value
         {
             get => _value;
-            set => _value = (byte)(value & 0b01111111);
+            set => _value = value;
         }
 
         /// <summary>
         /// Carry Flag
         /// </summary>
-        public byte C
+        public bool C
         {
-            get => (byte)(_value & 0b1);
-            set => _value = (byte)((_value & ~0b1) | (value & 0b1));
+            get => _value[0b1];
+            set => _value[0b1] = value;
         }
 
         /// <summary>
         /// Zero Flag
         /// </summary>
-        public byte Z
+        public bool Z
         {
-            get => (byte)((_value & 0b10) >> 1);
-            set => _value = (byte)((_value & ~0b10) | ((value << 1) & 0b10));
+            get => _value[0b10];
+            set => _value[0b10] = value;
         }
 
         /// <summary>
         /// Interrupt Disable
         /// </summary>
-        public byte I
+        public bool I
         {
-            get => (byte)((_value & 0b100) >> 2);
-            set => _value = (byte)((_value & ~0b100) | ((value << 2) & 0b100));
+            get => _value[0b100];
+            set => _value[0b100] = value;
         }
 
         /// <summary>
         /// Decimal Mode
         /// </summary>
-        public byte D
+        public bool D
         {
-            get => (byte)((_value & 0b1000) >> 3);
-            set => _value = (byte)((_value & ~0b1000) | ((value << 3) & 0b1000));
+            get => _value[0b1000];
+            set => _value[0b1000] = value;
         }
 
         /// <summary>
@@ -820,19 +849,19 @@ namespace LoveNes
         /// <summary>
         /// Overflow Flag
         /// </summary>
-        public byte V
+        public bool V
         {
-            get => (byte)((_value & 0b100_0000) >> 6);
-            set => _value = (byte)((_value & ~0b100_0000) | ((value << 6) & 0b100_0000));
+            get => _value[0b100_0000];
+            set => _value[0b100_0000] = value;
         }
 
         /// <summary>
         /// Negative Flag
         /// </summary>
-        public byte N
+        public bool N
         {
-            get => (byte)((_value & 0b1000_0000) >> 7);
-            set => _value = (byte)((_value & ~0b1000_0000) | ((value << 7) & 0b1000_0000));
+            get => _value[0b1000_0000];
+            set => _value[0b1000_0000] = value;
         }
     }
 }

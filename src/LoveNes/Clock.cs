@@ -11,10 +11,12 @@ namespace LoveNes
     public class Clock
     {
         private readonly List<IClockSink> _clockSinks;
+        private readonly List<IClockSink> _clock3Sinks;
 
         public Clock()
         {
             _clockSinks = new List<IClockSink>();
+            _clock3Sinks = new List<IClockSink>();
         }
 
         /// <summary>
@@ -27,17 +29,30 @@ namespace LoveNes
         }
 
         /// <summary>
+        /// 添加 3 倍时钟终端
+        /// </summary>
+        /// <param name="sink">终端</param>
+        public void Add3TimesSink(IClockSink sink)
+        {
+            _clock3Sinks.Add(sink);
+        }
+
+        /// <summary>
         /// 上电
         /// </summary>
         public void PowerUp()
         {
             _clockSinks.ForEach(o => o.OnPowerUp());
+            _clock3Sinks.ForEach(o => o.OnPowerUp());
 
             while (true)
             {
                 _clockSinks.ForEach(o => o.OnTick());
 
-                Thread.Sleep(10);
+                for (int i = 0; i < 3; i++)
+                    _clock3Sinks.ForEach(o => o.OnTick());
+
+                Thread.Sleep(0);
             }
         }
 
@@ -47,6 +62,7 @@ namespace LoveNes
         public void Reset()
         {
             _clockSinks.ForEach(o => o.OnReset());
+            _clock3Sinks.ForEach(o => o.OnReset());
         }
     }
 
