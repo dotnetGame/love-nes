@@ -31,6 +31,7 @@ namespace LoveNes
         private AddressOperation _addressOper;
 
         private byte _tempValue;
+        private ushort _tempValue16;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CPU"/> class.
@@ -85,6 +86,8 @@ namespace LoveNes
                     return OpCodeStatus.TXS_1_Implied;
                 case OpCode.INX_Implied:
                     return OpCodeStatus.INX_1_Implied;
+                case OpCode.LDA_Immediate:
+                    return OpCodeStatus.LDA_1_Immediate;
                 case OpCode.LDA_Absolute:
                     return OpCodeStatus.LDA_1_Absolute;
                 case OpCode.JSR_Absolute:
@@ -95,6 +98,36 @@ namespace LoveNes
                     return OpCodeStatus.BPL_1_Relative;
                 case OpCode.TXA_Implied:
                     return OpCodeStatus.TXA_1_Implied;
+                case OpCode.STA_ZeroPageX:
+                    return OpCodeStatus.STA_1_ZeroPageX;
+                case OpCode.STA_AbsoluteX:
+                    return OpCodeStatus.STA_1_AbsoluteX;
+                case OpCode.BNE_Relative:
+                    return OpCodeStatus.BNE_1_Relative;
+                case OpCode.LDY_Immediate:
+                    return OpCodeStatus.LDY_1_Immediate;
+                case OpCode.CMP_Absolute:
+                    return OpCodeStatus.CMP_1_Absolute;
+                case OpCode.STA_Absolute:
+                    return OpCodeStatus.STA_1_Absolute;
+                case OpCode.STY_Absolute:
+                    return OpCodeStatus.STY_1_Absolute;
+                case OpCode.STA_ZeroPage:
+                    return OpCodeStatus.STA_1_ZeroPage;
+                case OpCode.LDA_ZeroPage:
+                    return OpCodeStatus.LDA_1_ZeroPage;
+                case OpCode.AND_Immediate:
+                    return OpCodeStatus.AND_1_Immediate;
+                case OpCode.TAX_Implied:
+                    return OpCodeStatus.TAX_1_Implied;
+                case OpCode.STX_ZeroPage:
+                    return OpCodeStatus.STX_1_ZeroPage;
+                case OpCode.RTS_Implied:
+                    return OpCodeStatus.RTS_1_Implied;
+                case OpCode.LDA_AbsoluteX:
+                    return OpCodeStatus.LDA_1_AbsoluteX;
+                case OpCode.CPX_Immediate:
+                    return OpCodeStatus.CPX_1_Immediate;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -113,9 +146,19 @@ namespace LoveNes
             JSR_Absolute = 0x20,
 
             /// <summary>
+            /// Logical AND - Immediate
+            /// </summary>
+            AND_Immediate = 0x29,
+
+            /// <summary>
             /// Bit Test
             /// </summary>
             BIT_Absolute = 0x2C,
+
+            /// <summary>
+            /// Return from Subroutine
+            /// </summary>
+            RTS_Implied = 0x60,
 
             ADC_Immediate = 0x69,
 
@@ -125,9 +168,29 @@ namespace LoveNes
             SEI_Implied = 0x78,
 
             /// <summary>
+            /// Store A Register - Zero Page
+            /// </summary>
+            STA_ZeroPage = 0x85,
+
+            /// <summary>
+            /// Store X Register - Zero Page
+            /// </summary>
+            STX_ZeroPage = 0x86,
+
+            /// <summary>
             /// Transfer X to Accumulator
             /// </summary>
             TXA_Implied = 0x8A,
+
+            /// <summary>
+            /// Store Y Register - Absolute
+            /// </summary>
+            STY_Absolute = 0x8C,
+
+            /// <summary>
+            /// Store A Register - Absolute
+            /// </summary>
+            STA_Absolute = 0x8D,
 
             /// <summary>
             /// Store X Register - Absolute
@@ -135,9 +198,24 @@ namespace LoveNes
             STX_Absolute = 0x8E,
 
             /// <summary>
+            /// Store Accumulator - Zero Page X
+            /// </summary>
+            STA_ZeroPageX = 0x95,
+
+            /// <summary>
             /// Transfer X to Stack Pointer
             /// </summary>
             TXS_Implied = 0x9A,
+
+            /// <summary>
+            /// Store Accumulator - Absolute X
+            /// </summary>
+            STA_AbsoluteX = 0x9D,
+
+            /// <summary>
+            /// Load Y Register - Immediate
+            /// </summary>
+            LDY_Immediate = 0xA0,
 
             /// <summary>
             /// Load X Register - Immediate
@@ -145,14 +223,49 @@ namespace LoveNes
             LDX_Immediate = 0xA2,
 
             /// <summary>
-            /// Load Accumulator
+            /// Load Accumulator - Zero Page
+            /// </summary>
+            LDA_ZeroPage = 0xA5,
+
+            /// <summary>
+            /// Load Accumulator - Immediate
+            /// </summary>
+            LDA_Immediate = 0xA9,
+
+            /// <summary>
+            /// Transfer Accumulator to X
+            /// </summary>
+            TAX_Implied = 0xAA,
+
+            /// <summary>
+            /// Load Accumulator - Absolute
             /// </summary>
             LDA_Absolute = 0xAD,
+
+            /// <summary>
+            /// Load Accumulator - Absolute X
+            /// </summary>
+            LDA_AbsoluteX = 0xBD,
+
+            /// <summary>
+            /// Compare - Absolute
+            /// </summary>
+            CMP_Absolute = 0xCD,
+
+            /// <summary>
+            /// Branch if Not Equal
+            /// </summary>
+            BNE_Relative = 0xD0,
 
             /// <summary>
             /// Clear Decimal Mode
             /// </summary>
             CLD_Implied = 0xD8,
+
+            /// <summary>
+            /// Compare X Register - Immediate
+            /// </summary>
+            CPX_Immediate = 0xE0,
 
             /// <summary>
             /// Increment X Register
@@ -164,14 +277,23 @@ namespace LoveNes
         {
             None,
 
+            Relative_Jump,
+
+            BNE_1_Relative,
+
             BPL_1_Relative,
-            BPL_2_Relative,
 
             JSR_1_Absolute,
             JSR_2_Absolute,
             JSR_3_Absolute,
 
             BIT_1_Absolute,
+
+            RTS_1_Implied,
+            RTS_2_Implied,
+            RTS_3_Implied,
+            RTS_4_Implied,
+            RTS_5_Implied,
 
             ADC_1_Addressing_Immediate,
             ADC_1_Addressing_ZeroPage,
@@ -183,19 +305,40 @@ namespace LoveNes
             ADC_1_Addressing_IndirectY,
             ADC_2,
 
+            AND_1_Immediate,
+
             SEI_1_Implied,
 
             TXA_1_Implied,
 
+            STY_1_Absolute,
+
+            STA_1_ZeroPage,
+            STA_1_ZeroPageX,
+            STA_1_Absolute,
+            STA_1_AbsoluteX,
+
+            STX_1_ZeroPage,
             STX_1_Absolute,
 
             TXS_1_Implied,
 
             LDX_1_Immediate,
 
+            LDY_1_Immediate,
+
+            TAX_1_Implied,
+
+            LDA_1_Immediate,
             LDA_1_Absolute,
+            LDA_1_AbsoluteX,
+            LDA_1_ZeroPage,
+
+            CMP_1_Absolute,
 
             CLD_1_Implied,
+
+            CPX_1_Immediate,
 
             INX_1_Implied
         }
@@ -204,45 +347,44 @@ namespace LoveNes
         {
             switch (code)
             {
-                /*
-                case OpCodeStatus.ADC_1_Addressing_Immediate:
-                    _nextMicroCode = MicroCode.Immediate;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_ZeroPage:
-                    _nextMicroCode = MicroCode.ZeroPage_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_ZeroPageX:
-                    _nextMicroCode = MicroCode.ZeroPageX_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_Absolute:
-                    _nextMicroCode = MicroCode.Absolute_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_AbsoluteX:
-                    _nextMicroCode = MicroCode.AbsoluteX_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_AbsoluteY:
-                    _nextMicroCode = MicroCode.AbsoluteY_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_IndirectX:
-                    _nextMicroCode = MicroCode.IndirectX_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_1_Addressing_IndirectY:
-                    _nextMicroCode = MicroCode.IndirectY_1;
-                    _nextOpCodeStatus = OpCodeStatus.ADC_2;
-                    break;
-                case OpCodeStatus.ADC_2:
-                    _nextMicroCode = MicroCode.ADC;
-                    _nextOpCodeStatus = OpCodeStatus.None;
-                    break;*/
+                case OpCodeStatus.Relative_Jump:
+                    _addressDst = AddressDestination.PC;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Jump;
+                    return (MicroCode.Relative, OpCodeStatus.None);
+
                 case OpCodeStatus.SEI_1_Implied:
                     return (MicroCode.SEI, OpCodeStatus.None);
+                case OpCodeStatus.STY_1_Absolute:
+                    _addressDst = AddressDestination.Y;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.STA_1_ZeroPage:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
+                case OpCodeStatus.STA_1_ZeroPageX:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.ZeroPageX_1, OpCodeStatus.None);
+                case OpCodeStatus.STA_1_AbsoluteX:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.AbsoluteX_1, OpCodeStatus.None);
+                case OpCodeStatus.STA_1_Absolute:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.STX_1_ZeroPage:
+                    _addressDst = AddressDestination.X;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Write;
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
                 case OpCodeStatus.STX_1_Absolute:
                     _addressDst = AddressDestination.X;
                     _addressOper = AddressOperation.None;
@@ -250,11 +392,18 @@ namespace LoveNes
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
                 case OpCodeStatus.CLD_1_Implied:
                     return (MicroCode.CLD, OpCodeStatus.None);
+                case OpCodeStatus.LDY_1_Immediate:
+                    _addressDst = AddressDestination.Y;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Immediate, OpCodeStatus.None);
                 case OpCodeStatus.LDX_1_Immediate:
                     _addressDst = AddressDestination.X;
                     _addressOper = AddressOperation.None;
                     _addressDir = AddressDirection.Read;
                     return (MicroCode.Immediate, OpCodeStatus.None);
+                case OpCodeStatus.TAX_1_Implied:
+                    return (MicroCode.TAX, OpCodeStatus.None);
                 case OpCodeStatus.TXA_1_Implied:
                     return (MicroCode.TXA, OpCodeStatus.None);
                 case OpCodeStatus.TXS_1_Implied:
@@ -264,11 +413,26 @@ namespace LoveNes
                     _addressOper = AddressOperation.Inc;
                     _addressDir = AddressDirection.Read;
                     return (MicroCode.Register, OpCodeStatus.None);
+                case OpCodeStatus.LDA_1_Immediate:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Immediate, OpCodeStatus.None);
                 case OpCodeStatus.LDA_1_Absolute:
                     _addressDst = AddressDestination.A;
                     _addressOper = AddressOperation.None;
                     _addressDir = AddressDirection.Read;
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.LDA_1_AbsoluteX:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.AbsoluteX_1, OpCodeStatus.None);
+                case OpCodeStatus.LDA_1_ZeroPage:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.None;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
                 case OpCodeStatus.JSR_1_Absolute:
                     _tempValue = (byte)((Registers.PC + 1) >> 8);
                     return (MicroCode.Push, OpCodeStatus.JSR_2_Absolute);
@@ -288,19 +452,54 @@ namespace LoveNes
                 case OpCodeStatus.BPL_1_Relative:
                     if (Status.N)
                     {
-                        return (MicroCode.Nop, OpCodeStatus.BPL_2_Relative);
+                        Registers.PC++;
+                        return (MicroCode.Nop, OpCodeStatus.None);
                     }
                     else
+                    {
+                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
+                    }
+
+                case OpCodeStatus.BNE_1_Relative:
+                    if (Status.Z)
                     {
                         Registers.PC++;
                         return (MicroCode.Nop, OpCodeStatus.None);
                     }
+                    else
+                    {
+                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
+                    }
 
-                case OpCodeStatus.BPL_2_Relative:
-                    _addressDst = AddressDestination.PC;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Jump;
-                    return (MicroCode.Relative, OpCodeStatus.None);
+                case OpCodeStatus.CMP_1_Absolute:
+                    _addressDst = AddressDestination.None;
+                    _addressOper = AddressOperation.Compare;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.CPX_1_Immediate:
+                    _addressDst = AddressDestination.None;
+                    _addressOper = AddressOperation.CompareX;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Immediate, OpCodeStatus.None);
+                case OpCodeStatus.AND_1_Immediate:
+                    _addressDst = AddressDestination.A;
+                    _addressOper = AddressOperation.And;
+                    _addressDir = AddressDirection.Read;
+                    return (MicroCode.Immediate, OpCodeStatus.None);
+                case OpCodeStatus.RTS_1_Implied:
+                    return (MicroCode.Pop, OpCodeStatus.RTS_2_Implied);
+                case OpCodeStatus.RTS_2_Implied:
+                    _tempValue16 = _tempValue;
+                    return (MicroCode.Pop, OpCodeStatus.RTS_3_Implied);
+                case OpCodeStatus.RTS_3_Implied:
+                    _tempValue16 |= (ushort)(_tempValue << 8);
+                    return (MicroCode.Nop, OpCodeStatus.RTS_4_Implied);
+                case OpCodeStatus.RTS_4_Implied:
+                    _tempValue16++;
+                    return (MicroCode.Nop, OpCodeStatus.RTS_5_Implied);
+                case OpCodeStatus.RTS_5_Implied:
+                    Registers.PC = _tempValue16;
+                    return (MicroCode.Nop, OpCodeStatus.None);
                 default:
                     throw new InvalidProgramException($"invalid op code status: 0x{code:X}.");
             }
@@ -336,6 +535,7 @@ namespace LoveNes
             AbsoluteX_1,
             AbsoluteX_2,
             AbsoluteX_3,
+            AbsoluteX_4,
 
             AbsoluteY_1,
             AbsoluteY_2,
@@ -353,11 +553,13 @@ namespace LoveNes
             IndirectY_4,
 
             Push,
+            Pop,
 
             ADC,
 
             SEI,
 
+            TAX,
             TXA,
             TXS,
 
@@ -394,6 +596,40 @@ namespace LoveNes
                 case MicroCode.Absolute_3:
                     DispatchMemoryAddressing((ushort)((_masterClient.Value << 8) | (_tempValue & 0xFF)));
                     return MicroCode.None;
+
+                case MicroCode.ZeroPage_1:
+                    _masterClient.Read(Registers.PC++);
+                    _tempValue = _masterClient.Value;
+                    return MicroCode.ZeroPage_2;
+                case MicroCode.ZeroPage_2:
+                    DispatchMemoryAddressing(_tempValue);
+                    return MicroCode.None;
+
+                case MicroCode.ZeroPageX_1:
+                    _masterClient.Read(Registers.PC++);
+                    _tempValue = _masterClient.Value;
+                    return MicroCode.ZeroPageX_2;
+                case MicroCode.ZeroPageX_2:
+                    _tempValue += Registers.X;
+                    return MicroCode.ZeroPageX_3;
+                case MicroCode.ZeroPageX_3:
+                    DispatchMemoryAddressing(_tempValue);
+                    return MicroCode.None;
+
+                case MicroCode.AbsoluteX_1:
+                    _masterClient.Read(Registers.PC++);
+                    _tempValue = _masterClient.Value;
+                    return MicroCode.AbsoluteX_2;
+                case MicroCode.AbsoluteX_2:
+                    _masterClient.Read(Registers.PC++);
+                    _tempValue16 = (ushort)((_masterClient.Value << 8) | (_tempValue & 0xFF));
+                    return MicroCode.AbsoluteX_3;
+                case MicroCode.AbsoluteX_3:
+                    _tempValue16 += Registers.X;
+                    return MicroCode.AbsoluteX_4;
+                case MicroCode.AbsoluteX_4:
+                    DispatchMemoryAddressing(_tempValue16);
+                    return MicroCode.None;
                 /*
                 case MicroCode.ZeroPage_1:
                     _masterClient.Read(Registers.PC++);
@@ -401,20 +637,6 @@ namespace LoveNes
                     _nextMicroCode = MicroCode.ZeroPage_2;
                     break;
                 case MicroCode.ZeroPage_2:
-                    _masterClient.Read(_addressResult);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.ZeroPageX_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.ZeroPageX_2;
-                    break;
-                case MicroCode.ZeroPageX_2:
-                    _addressResult += Registers.X;
-                    _nextMicroCode = MicroCode.ZeroPageX_3;
-                    break;
-                case MicroCode.ZeroPageX_3:
                     _masterClient.Read(_addressResult);
                     _addressResult = _masterClient.Value;
                     _nextMicroCode = MicroCode.None;
@@ -445,21 +667,6 @@ namespace LoveNes
                     break;
                 case MicroCode.Absolute_3:
                     _masterClient.Read((ushort)(_addressResult | _addressResult2 << 8));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.AbsoluteX_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_2;
-                    break;
-                case MicroCode.AbsoluteX_2:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_3;
-                    break;
-                case MicroCode.AbsoluteX_3:
-                    _masterClient.Read((ushort)((_addressResult | _addressResult2 << 8) + Registers.X));
                     _addressResult = _masterClient.Value;
                     _nextMicroCode = MicroCode.None;
                     break;
@@ -537,11 +744,20 @@ namespace LoveNes
                     _masterClient.Value = _tempValue;
                     _masterClient.Write((ushort)(0x100u + Registers.S--));
                     return MicroCode.None;
+                case MicroCode.Pop:
+                    _masterClient.Read((ushort)(0x100u + ++Registers.S));
+                    _tempValue = _masterClient.Value;
+                    return MicroCode.None;
                 case MicroCode.SEI:
                     Status.I = true;
                     return MicroCode.None;
+                case MicroCode.TAX:
+                    Registers.X = Registers.A;
+                    UpdateNZ(Registers.X);
+                    return MicroCode.None;
                 case MicroCode.TXA:
                     Registers.A = Registers.X;
+                    UpdateNZ(Registers.A);
                     return MicroCode.None;
                 case MicroCode.TXS:
                     Registers.S = Registers.X;
@@ -558,6 +774,7 @@ namespace LoveNes
         {
             None,
             X,
+            Y,
             A,
             PC
         }
@@ -573,7 +790,10 @@ namespace LoveNes
         {
             None,
             Inc,
-            BitTest
+            BitTest,
+            Compare,
+            CompareX,
+            And
         }
 
         private void DispatchRegisterAddressing()
@@ -605,6 +825,9 @@ namespace LoveNes
                         case AddressDestination.X:
                             Registers.X = DoOperation(_masterClient.Value, true);
                             break;
+                        case AddressDestination.Y:
+                            Registers.Y = DoOperation(_masterClient.Value, true);
+                            break;
                         case AddressDestination.A:
                             Registers.A = DoOperation(_masterClient.Value, true);
                             break;
@@ -618,6 +841,12 @@ namespace LoveNes
                     {
                         case AddressDestination.X:
                             _masterClient.Value = Registers.X;
+                            break;
+                        case AddressDestination.Y:
+                            _masterClient.Value = Registers.Y;
+                            break;
+                        case AddressDestination.A:
+                            _masterClient.Value = Registers.A;
                             break;
                         default:
                             throw new ArgumentException(nameof(_addressDst));
@@ -658,6 +887,33 @@ namespace LoveNes
                         Status.Z = (Registers.A & value) == 0;
                         Status.N = ((value & 0x80) >> 7) != 0;
                         Status.V = ((value & 0x40) >> 6) != 0;
+                    }
+
+                    return value;
+                case AddressOperation.Compare:
+                    if (affectFlag)
+                    {
+                        Status.C = Registers.A >= value;
+                        Status.Z = Registers.A == value;
+                        Status.N = Registers.A - value < 0;
+                    }
+
+                    return value;
+                case AddressOperation.CompareX:
+                    if (affectFlag)
+                    {
+                        Status.C = Registers.X >= value;
+                        Status.Z = Registers.X == value;
+                        Status.N = Registers.X - value < 0;
+                    }
+
+                    return value;
+                case AddressOperation.And:
+                    value &= Registers.A;
+                    if (affectFlag)
+                    {
+                        Status.Z = Registers.A == 0;
+                        Status.N = ((value & 0x80) >> 7) != 0;
                     }
 
                     return value;
