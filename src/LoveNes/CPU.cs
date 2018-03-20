@@ -21,7 +21,7 @@ namespace LoveNes
         /// </summary>
         public ProcessorStatus Status;
 
-        private readonly IBusMasterClient _masterClient;
+        private IBusMasterClient _masterClient;
         private MicroCode _nextMicroCode;
         private OpCodeStatus _nextOpCodeStatus;
         private bool _readingOpCode = false;
@@ -44,6 +44,8 @@ namespace LoveNes
 
         private void ExecuteOpCode()
         {
+            if (!_masterClient.TryAcquire()) return;
+
             if (_nextMicroCode == MicroCode.None)
             {
                 if (_nextOpCodeStatus == OpCodeStatus.None)
@@ -128,6 +130,8 @@ namespace LoveNes
                     return OpCodeStatus.LDA_1_AbsoluteX;
                 case OpCode.CPX_Immediate:
                     return OpCodeStatus.CPX_1_Immediate;
+                case OpCode.BEQ_Relative:
+                    return OpCodeStatus.BEQ_1_Relative;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -270,7 +274,12 @@ namespace LoveNes
             /// <summary>
             /// Increment X Register
             /// </summary>
-            INX_Implied = 0xE8
+            INX_Implied = 0xE8,
+
+            /// <summary>
+            /// Branch if Equal
+            /// </summary>
+            BEQ_Relative = 0xF0
         }
 
         public enum OpCodeStatus : byte
@@ -340,7 +349,9 @@ namespace LoveNes
 
             CPX_1_Immediate,
 
-            INX_1_Implied
+            INX_1_Implied,
+
+            BEQ_1_Relative
         }
 
         private (MicroCode nextMicroCode, OpCodeStatus nextOpCodeStatus) ExecuteOpCode(OpCodeStatus code)
@@ -469,6 +480,17 @@ namespace LoveNes
                     else
                     {
                         return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
+                    }
+
+                case OpCodeStatus.BEQ_1_Relative:
+                    if (Status.Z)
+                    {
+                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
+                    }
+                    else
+                    {
+                        Registers.PC++;
+                        return (MicroCode.Nop, OpCodeStatus.None);
                     }
 
                 case OpCodeStatus.CMP_1_Absolute:
@@ -973,13 +995,13 @@ namespace LoveNes
             Registers.Y = 0;
             Registers.S = 0xFD;
 
-            _masterClient.Value = 0;
-            _masterClient.Write(0x4017); // frame irq enabled
-            _masterClient.Write(0x4015); // all channels disabled
+            // _masterClient.Value = 0;
+            // _masterClient.Write(0x4017); // frame irq enabled
+            // _masterClient.Write(0x4015); // all channels disabled
 
             // $4000 -$400F = $00
-            for (ushort i = 0x4000; i <= 0x400F; i++)
-                _masterClient.Write(i);
+            // for (ushort i = 0x4000; i <= 0x400F; i++)
+            //    _masterClient.Write(i);
 
             // TODO:
             // All 15 bits of noise channel LFSR = $0000[3].The first time the LFSR is clocked from the all-0s state, it will shift in a 1.

@@ -19,6 +19,8 @@ namespace LoveNes
         private readonly CPU _cpu;
         private readonly OnChipRAM _cpuOnChipRAM;
 
+        private readonly APU _apu;
+
         private readonly PPU _ppu;
         private readonly Bus _ppuBus;
         private readonly OnChipRAM _ppuOnChipRAM;
@@ -37,23 +39,50 @@ namespace LoveNes
             // 片上 RAM
             _cpuOnChipRAM = new OnChipRAM(OnChipRAMSize);
             _clock.AddSink(_cpuOnChipRAM);
+
+            // APU
+            _apu = new APU();
+
+            // 板卡
+            Cartridge = new Cartridge();
+
+            _ppuBus = new Bus();
+            _ppu = new PPU();
+            _clock.AddSink(_ppu);
+
+            _ppuOnChipRAM = new OnChipRAM(OnChipRAMSize);
+            _clock.AddSink(_ppuOnChipRAM);
+
+            SetupCPUMemoryMap();
+            SetupPPUMemoryMap();
+        }
+
+        private void SetupCPUMemoryMap()
+        {
+            // 片上 RAM
             _cpuBus.AddSlave(0x0000, _cpuOnChipRAM);
             _cpuBus.AddSlave(0x0800, _cpuOnChipRAM);
             _cpuBus.AddSlave(0x1000, _cpuOnChipRAM);
             _cpuBus.AddSlave(0x1800, _cpuOnChipRAM);
 
             // 板卡
-            Cartridge = new Cartridge();
             _cpuBus.AddSlave(0x4020, Cartridge.CPUSlave);
 
-            _ppuBus = new Bus();
-            _ppu = new PPU();
-            _clock.AddSink(_ppu);
+            // PPU
             for (ushort i = 0x2000; i < 0x3FFF; i += 8)
                 _cpuBus.AddSlave(i, _ppu);
 
-            _ppuOnChipRAM = new OnChipRAM(OnChipRAMSize);
-            _clock.AddSink(_ppuOnChipRAM);
+            // APU
+            _cpuBus.AddSlave(0x4017, _apu.FrameController, Bus.SlaveAccess.Write);
+
+            // OAM DMA
+            var oamDma = new OamDmaController(_cpuBus.MasterClient);
+            _clock.AddSink(oamDma);
+            _cpuBus.AddSlave(0x4014, oamDma, Bus.SlaveAccess.Write);
+        }
+
+        private void SetupPPUMemoryMap()
+        {
             _ppuBus.AddSlave(0x0000, Cartridge.PPUSlave);
             _ppuBus.AddSlave(0x2000, _ppuOnChipRAM);
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Text;
 
 namespace LoveNes
@@ -10,8 +11,19 @@ namespace LoveNes
         ushort IBusSlave.MemoryMapSize => 8;
 
         private PPUStatus _status;
+        private PPUController _controller;
+        private PPUMask _mask;
+        private byte _oamAddress;
+
+        private readonly byte[] _oamMemory;
+
         private ushort _scanline;
         private ushort _dot;
+
+        public PPU()
+        {
+            _oamMemory = new byte[64 * 4];
+        }
 
         void IClockSink.OnPowerUp()
         {
@@ -97,6 +109,16 @@ namespace LoveNes
 
         void IBusSlave.Write(ushort address, byte value)
         {
+            if (address == 0x0000)
+                _controller.Value = value;
+            else if (address == 0x0001)
+                _mask.Value = value;
+            else if (address == 0x0003)
+                _oamAddress = value;
+            else if (address == 0x0004)
+                _oamMemory[_oamAddress++] = value;
+            else
+                throw new NotImplementedException();
         }
     }
 
@@ -135,6 +157,28 @@ namespace LoveNes
         {
             get => _value[0b1000_0000];
             set => _value[0b1000_0000] = value;
+        }
+    }
+
+    public struct PPUController
+    {
+        private BitVector8 _value;
+
+        public byte Value
+        {
+            get => _value;
+            set => _value = value;
+        }
+    }
+
+    public struct PPUMask
+    {
+        private BitVector8 _value;
+
+        public byte Value
+        {
+            get => _value;
+            set => _value = value;
         }
     }
 }

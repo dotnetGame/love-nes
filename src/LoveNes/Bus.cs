@@ -9,7 +9,8 @@ namespace LoveNes
     /// </summary>
     public class Bus : IBusMasterClient
     {
-        private readonly SortedList<ushort, IBusSlave> _slaves;
+        private readonly SortedList<ushort, IBusSlave> _slavesRead;
+        private readonly SortedList<ushort, IBusSlave> _slavesWrite;
 
         /// <summary>
         /// Master 外设客户端
@@ -19,20 +20,41 @@ namespace LoveNes
         /// <inheritdoc/>
         public byte Value { get; set; }
 
+        private bool _isUsed;
+
         public Bus()
         {
-            _slaves = new SortedList<ushort, IBusSlave>(Comparer<ushort>.Create((x, y) => y - x));
+            _slavesRead = new SortedList<ushort, IBusSlave>(Comparer<ushort>.Create((x, y) => y - x));
+            _slavesWrite = new SortedList<ushort, IBusSlave>(Comparer<ushort>.Create((x, y) => y - x));
+        }
+
+        void IBusMasterClient.Acquire()
+        {
+            _isUsed = true;
+        }
+
+        bool IBusMasterClient.TryAcquire()
+        {
+            if (!_isUsed)
+                return true;
+
+            return false;
+        }
+
+        void IBusMasterClient.Release()
+        {
+            _isUsed = false;
         }
 
         void IBusMasterClient.Read(ushort address)
         {
-            var slave = FindSlave(address);
+            var slave = FindSlave(address, SlaveAccess.Read);
             Value = slave.slave.Read(slave.offset);
         }
 
         void IBusMasterClient.Write(ushort address)
         {
-            var slave = FindSlave(address);
+            var slave = FindSlave(address, SlaveAccess.Write);
             slave.slave.Write(slave.offset, Value);
         }
 
@@ -41,17 +63,33 @@ namespace LoveNes
         /// </summary>
         /// <param name="baseAddress">基地址</param>
         /// <param name="slave">Slave 外设</param>
-        public void AddSlave(ushort baseAddress, IBusSlave slave)
+        public void AddSlave(ushort baseAddress, IBusSlave slave, SlaveAccess slaveAccess = SlaveAccess.Read | SlaveAccess.Write)
         {
             var newRange = new Range { Start = baseAddress, End = (ushort)(baseAddress + slave.MemoryMapSize) };
-            foreach (var slavePair in _slaves)
+
+            void AddSlave(SortedList<ushort, IBusSlave> slaves)
             {
-                var range = new Range { Start = slavePair.Key, End = (ushort)(slavePair.Key + slavePair.Value.MemoryMapSize) };
-                if (newRange.Overlaps(range))
-                    throw new ArgumentOutOfRangeException($"Memory address overlaps: {range} with {newRange}.");
+                foreach (var slavePair in slaves)
+                {
+                    var range = new Range { Start = slavePair.Key, End = (ushort)(slavePair.Key + slavePair.Value.MemoryMapSize) };
+                    if (newRange.Overlaps(range))
+                        throw new ArgumentOutOfRangeException($"Memory address overlaps: {range} with {newRange}.");
+                }
+
+                slaves.Add(baseAddress, slave);
             }
 
-            _slaves.Add(baseAddress, slave);
+            if (slaveAccess.HasFlag(SlaveAccess.Read))
+                AddSlave(_slavesRead);
+            if (slaveAccess.HasFlag(SlaveAccess.Write))
+                AddSlave(_slavesWrite);
+        }
+
+        [Flags]
+        public enum SlaveAccess
+        {
+            Read = 0x1,
+            Write = 0x2
         }
 
         /// <summary>
@@ -59,17 +97,17 @@ namespace LoveNes
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns>选中的 Slave 外设和内存地址偏移</returns>
-        private (IBusSlave slave, ushort offset) FindSlave(ushort address)
+        private (IBusSlave slave, ushort offset) FindSlave(ushort address, SlaveAccess slaveAccess)
         {
-            foreach (var slave in _slaves)
+            var slaves = slaveAccess == SlaveAccess.Read ? _slavesRead : _slavesWrite;
+            foreach (var slave in slaves)
             {
                 if (slave.Key <= address)
                 {
                     var offset = (ushort)(address - slave.Key);
                     if (offset >= slave.Value.MemoryMapSize)
                     {
-                        // throw new AccessViolationException($"address: 0x{address:X} is out of slave memory range.");
-                        return (DummySlave.Instance, offset);
+                        throw new AccessViolationException($"address: 0x{address:X} is out of slave memory range.");
                     }
 
                     return (slave.Value, offset);
@@ -118,6 +156,12 @@ namespace LoveNes
     /// </summary>
     public interface IBusMasterClient
     {
+        void Acquire();
+
+        bool TryAcquire();
+
+        void Release();
+
         /// <summary>
         /// 值
         /// </summary>
