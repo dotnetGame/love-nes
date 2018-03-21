@@ -146,21 +146,31 @@ namespace LoveNes
                         _nextTileFetchStatus = TileFetchStatus.Attribute_1;
                         break;
                     case TileFetchStatus.Attribute_1:
+                        _nextTileFetchStatus = TileFetchStatus.Attribute_2;
                         break;
                     case TileFetchStatus.Attribute_2:
+                        _nextTileFetchStatus = TileFetchStatus.BitmapLow_1;
                         break;
                     case TileFetchStatus.BitmapLow_1:
+                        _nextTileFetchStatus = TileFetchStatus.BitmapLow_2;
                         break;
                     case TileFetchStatus.BitmapLow_2:
+                        _nextTileFetchStatus = TileFetchStatus.BitmapHigh_1;
                         break;
                     case TileFetchStatus.BitmapHigh_1:
+                        _nextTileFetchStatus = TileFetchStatus.BitmapHigh_2;
                         break;
                     case TileFetchStatus.BitmapHigh_2:
-                        break;
-                    default:
+                        OutputPixel();
+                        _cntTile++;
+                        _nextTileFetchStatus = TileFetchStatus.Nametable_1;
                         break;
                 }
             }
+        }
+
+        private void OutputPixel()
+        {
         }
 
         private ushort MirrorNametableAddress(ushort address)
