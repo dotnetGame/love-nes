@@ -23,7 +23,6 @@ namespace LoveNes
 
         private readonly PPU _ppu;
         private readonly Bus _ppuBus;
-        private readonly OnChipRAM _ppuOnChipRAM;
 
         public Cartridge Cartridge { get; }
 
@@ -43,15 +42,12 @@ namespace LoveNes
             // APU
             _apu = new APU();
 
-            // 板卡
-            Cartridge = new Cartridge();
-
             _ppuBus = new Bus();
-            _ppu = new PPU(_cpu);
+            _ppu = new PPU(_ppuBus, _cpu);
             _clock.AddSink(_ppu);
 
-            _ppuOnChipRAM = new OnChipRAM(OnChipRAMSize);
-            _clock.AddSink(_ppuOnChipRAM);
+            // 板卡
+            Cartridge = new Cartridge(_ppu);
 
             SetupCPUMemoryMap();
             SetupPPUMemoryMap();
@@ -85,8 +81,12 @@ namespace LoveNes
 
         private void SetupPPUMemoryMap()
         {
-            _ppuBus.AddSlave(0x0000, Cartridge.PPUSlave);
-            _ppuBus.AddSlave(0x2000, _ppuOnChipRAM);
+            _ppuBus.AddSlave(0x0000, Cartridge.ChrRom);
+
+            var nametable0 = new OnChipRAM(0x400);
+            _ppuBus.AddSlave(0x2000, nametable0);
+            var nametable1 = new OnChipRAM(0x400);
+            _ppuBus.AddSlave(0x2400, nametable1);
         }
 
         /// <summary>

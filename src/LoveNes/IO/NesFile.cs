@@ -23,6 +23,8 @@ namespace LoveNes.IO
 
         public byte[] ChrRom { get; private set; }
 
+        public MirroringMode MirroringMode { get; private set; }
+
         public NesFile(byte[] content)
         {
             Load(content);
@@ -65,7 +67,9 @@ namespace LoveNes.IO
             ChrRomSize = span.ReadAsByte() * 8u * 1024;
 
             var flag6 = span.ReadAsByte();
+            MirroringMode = (MirroringMode)(flag6 & 0b1);
             HasTrainer = (flag6 & 0b001) != 0;
+
             var flag7 = span.ReadAsByte();
 
             PrgRamSize = Math.Max((byte)1, span.ReadAsByte()) * 8u * 1024;

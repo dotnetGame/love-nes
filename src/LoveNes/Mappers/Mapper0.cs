@@ -42,7 +42,17 @@ namespace LoveNes.Mappers
 
         public void Write(ushort address, byte value)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
+        }
+
+        public byte ReadPPU(ushort address)
+        {
+            return _nesFile.ChrRom[address];
+        }
+
+        public void WritePPU(ushort address, byte value)
+        {
+            throw new NotSupportedException();
         }
     }
 }

@@ -27,6 +27,7 @@ namespace LoveNes
         private bool _readingOpCode = false;
 
         private AddressState _addressState;
+        private InterruptType? _interruptType;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CPU"/> class.
@@ -52,6 +53,7 @@ namespace LoveNes
         {
             None,
             Inc,
+            Dec,
             BitTest,
             Compare,
             And
@@ -70,6 +72,7 @@ namespace LoveNes
             public bool AffectFlags;
 
             public ushort MemoryAddress;
+            public byte MemoryAddress8;
 
             public byte ResultA;
             public byte ResultB;
@@ -128,6 +131,11 @@ namespace LoveNes
                     break;
                 case AddressOperation.Inc:
                     _addressState.ResultA++;
+                    if (_addressState.AffectFlags)
+                        UpdateNZ(_addressState.ResultA);
+                    break;
+                case AddressOperation.Dec:
+                    _addressState.ResultA--;
                     if (_addressState.AffectFlags)
                         UpdateNZ(_addressState.ResultA);
                     break;
@@ -209,22 +217,7 @@ namespace LoveNes
 
         public void Interrupt(InterruptType interrupt)
         {
-            Status.I = true;
-            var vector = _interruptVectors[(byte)interrupt];
-            Registers.PC = ReadUShort(vector);
-
-            _nextMicroCode = MicroCode.None;
-            _nextOpCodeStatus = OpCodeStatus.None;
-            _readingOpCode = false;
-        }
-
-        private ushort ReadUShort(ushort address)
-        {
-            _masterClient.Read(address);
-            ushort value = _masterClient.Value;
-            _masterClient.Read(++address);
-            value = (ushort)(value | (_masterClient.Value << 8));
-            return value;
+            _interruptType = interrupt;
         }
 
         void IClockSink.OnTick()
@@ -261,9 +254,6 @@ namespace LoveNes
         void IClockSink.OnReset()
         {
             // see also: https://wiki.nesdev.com/w/index.php/CPU_power_up_state
-            Registers.S -= 3;
-            Status.I = true;
-
             // TODO:
             // APU mode in $4017 was unchanged
             // APU was silenced($4015 = 0)

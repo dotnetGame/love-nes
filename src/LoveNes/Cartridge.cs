@@ -9,29 +9,32 @@ namespace LoveNes
     public class Cartridge
     {
         private Mapper0 _mapper;
+        private readonly PPU _ppu;
 
         public IBusSlave CPUSlave { get; }
 
-        public IBusSlave PPUSlave { get; }
+        public IBusSlave ChrRom { get; }
 
-        public Cartridge()
+        public Cartridge(PPU ppu)
         {
-            CPUSlave = new CPUSlaveProvidere(this);
-            PPUSlave = new PPUSlaveProvidere(this);
+            _ppu = ppu;
+            CPUSlave = new CPUSlaveProvider(this);
+            ChrRom = new ChrRomProvider(this);
         }
 
         public void InsertNesFile(NesFile nesFile)
         {
+            _ppu.MirroringMode = nesFile.MirroringMode;
             _mapper = new Mapper0(nesFile);
         }
 
-        private class CPUSlaveProvidere : IBusSlave
+        private class CPUSlaveProvider : IBusSlave
         {
             ushort IBusSlave.MemoryMapSize => 0xBFE0;
 
             private readonly Cartridge _cartridge;
 
-            public CPUSlaveProvidere(Cartridge cartridge)
+            public CPUSlaveProvider(Cartridge cartridge)
             {
                 _cartridge = cartridge;
             }
@@ -47,25 +50,25 @@ namespace LoveNes
             }
         }
 
-        private class PPUSlaveProvidere : IBusSlave
+        private class ChrRomProvider : IBusSlave
         {
             ushort IBusSlave.MemoryMapSize => 0x2000;
 
             private readonly Cartridge _cartridge;
 
-            public PPUSlaveProvidere(Cartridge cartridge)
+            public ChrRomProvider(Cartridge cartridge)
             {
                 _cartridge = cartridge;
             }
 
             byte IBusSlave.Read(ushort address)
             {
-                return _cartridge._mapper.Read(address);
+                return _cartridge._mapper.ReadPPU(address);
             }
 
             void IBusSlave.Write(ushort address, byte value)
             {
-                _cartridge._mapper.Write(address, value);
+                _cartridge._mapper.WritePPU(address, value);
             }
         }
     }

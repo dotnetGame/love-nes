@@ -29,6 +29,11 @@ namespace LoveNes
             BIT_Absolute = 0x2C,
 
             /// <summary>
+            /// Return from Interrupt
+            /// </summary>
+            RTI_Implied = 0x40,
+
+            /// <summary>
             /// Return from Subroutine
             /// </summary>
             RTS_Implied = 0x60,
@@ -101,6 +106,11 @@ namespace LoveNes
             LDA_ZeroPage = 0xA5,
 
             /// <summary>
+            /// Transfer Accumulator to Y
+            /// </summary>
+            TAY_Implied = 0xA8,
+
+            /// <summary>
             /// Load Accumulator - Immediate
             /// </summary>
             LDA_Immediate = 0xA9,
@@ -116,9 +126,29 @@ namespace LoveNes
             LDA_Absolute = 0xAD,
 
             /// <summary>
+            /// Load Accumulator - Indirect Y
+            /// </summary>
+            LDA_IndirectY = 0xB1,
+
+            /// <summary>
             /// Load Accumulator - Absolute X
             /// </summary>
             LDA_AbsoluteX = 0xBD,
+
+            /// <summary>
+            /// Compare - Zero Page
+            /// </summary>
+            CMP_ZeroPage = 0xC5,
+
+            /// <summary>
+            /// Increment Y Register
+            /// </summary>
+            INY_Implied = 0xC8,
+
+            /// <summary>
+            /// Decrement X Register
+            /// </summary>
+            DEX_Implied = 0xCA,
 
             /// <summary>
             /// Compare - Absolute
@@ -172,6 +202,8 @@ namespace LoveNes
                     return OpCodeStatus.TXS_1_Implied;
                 case OpCode.INX_Implied:
                     return OpCodeStatus.INX_1_Implied;
+                case OpCode.TAY_Implied:
+                    return OpCodeStatus.TAY_1_Implied;
                 case OpCode.LDA_Immediate:
                     return OpCodeStatus.LDA_1_Immediate;
                 case OpCode.LDA_Absolute:
@@ -192,6 +224,8 @@ namespace LoveNes
                     return OpCodeStatus.BNE_1_Relative;
                 case OpCode.LDY_Immediate:
                     return OpCodeStatus.LDY_1_Immediate;
+                case OpCode.CMP_ZeroPage:
+                    return OpCodeStatus.CMP_1_ZeroPage;
                 case OpCode.CMP_Absolute:
                     return OpCodeStatus.CMP_1_Absolute;
                 case OpCode.STA_Absolute:
@@ -212,12 +246,20 @@ namespace LoveNes
                     return OpCodeStatus.RTS_1_Implied;
                 case OpCode.LDA_AbsoluteX:
                     return OpCodeStatus.LDA_1_AbsoluteX;
+                case OpCode.LDA_IndirectY:
+                    return OpCodeStatus.LDA_1_IndirectY;
                 case OpCode.CPX_Immediate:
                     return OpCodeStatus.CPX_1_Immediate;
                 case OpCode.BEQ_Relative:
                     return OpCodeStatus.BEQ_1_Relative;
                 case OpCode.INC_ZeroPage:
                     return OpCodeStatus.INC_1_ZeroPage;
+                case OpCode.INY_Implied:
+                    return OpCodeStatus.INY_1_Implied;
+                case OpCode.DEX_Implied:
+                    return OpCodeStatus.DEX_1_Implied;
+                case OpCode.RTI_Implied:
+                    return OpCodeStatus.RTI_1_Implied;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -231,19 +273,24 @@ namespace LoveNes
             {
                 if (_nextOpCodeStatus == OpCodeStatus.None)
                 {
-                    if (!_readingOpCode)
-                    {
-                        _readingOpCode = true;
-                        _masterClient.Read(Registers.PC++);
-                        return;
-                    }
-                    else
+                    if (_readingOpCode)
                     {
                         _readingOpCode = false;
                         var opCode = (OpCode)_masterClient.Value;
 
-                        Console.WriteLine(opCode);
+                        Console.WriteLine($"0x{Registers.PC - 1:X4} {opCode}");
                         _nextOpCodeStatus = ExecuteOpCode(opCode);
+                    }
+                    else if (_interruptType != null)
+                    {
+                        _nextOpCodeStatus = OpCodeStatus.Interrupt_1;
+                        Console.WriteLine($"Interrupt: {_interruptType}");
+                    }
+                    else
+                    {
+                        _readingOpCode = true;
+                        _masterClient.Read(Registers.PC++);
+                        return;
                     }
                 }
 
