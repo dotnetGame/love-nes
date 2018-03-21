@@ -20,8 +20,14 @@ namespace LoveNes
         private ushort _scanline;
         private ushort _dot;
 
-        public PPU()
+        private ushort _ppuAddr;
+        private bool _writingPPUAddrLow;
+
+        private readonly IInterruptReceiver _interruptReceiver;
+
+        public PPU(IInterruptReceiver interruptReceiver)
         {
+            _interruptReceiver = interruptReceiver;
             _oamMemory = new byte[64 * 4];
         }
 
@@ -81,6 +87,8 @@ namespace LoveNes
             if (_dot == 1)
             {
                 _status.V = true;
+                if (_controller.V)
+                    _interruptReceiver.Interrupt(InterruptType.NMI);
             }
         }
 
@@ -110,15 +118,33 @@ namespace LoveNes
         void IBusSlave.Write(ushort address, byte value)
         {
             if (address == 0x0000)
+            {
                 _controller.Value = value;
+            }
             else if (address == 0x0001)
+            {
                 _mask.Value = value;
+            }
             else if (address == 0x0003)
+            {
                 _oamAddress = value;
+            }
             else if (address == 0x0004)
+            {
                 _oamMemory[_oamAddress++] = value;
+            }
+            else if (address == 0x0006)
+            {
+                if (_writingPPUAddrLow)
+                    _ppuAddr = (ushort)((_ppuAddr & 0xFF00) | value);
+                else
+                    _ppuAddr = (ushort)((_ppuAddr & 0xFF) | (value << 8));
+                _writingPPUAddrLow = !_writingPPUAddrLow;
+            }
             else
+            {
                 throw new NotImplementedException();
+            }
         }
     }
 
@@ -168,6 +194,12 @@ namespace LoveNes
         {
             get => _value;
             set => _value = value;
+        }
+
+        public bool V
+        {
+            get => _value[0b1000_0000];
+            set => _value[0b1000_0000] = value;
         }
     }
 

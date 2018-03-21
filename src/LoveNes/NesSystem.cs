@@ -47,7 +47,7 @@ namespace LoveNes
             Cartridge = new Cartridge();
 
             _ppuBus = new Bus();
-            _ppu = new PPU();
+            _ppu = new PPU(_cpu);
             _clock.AddSink(_ppu);
 
             _ppuOnChipRAM = new OnChipRAM(OnChipRAMSize);
@@ -73,7 +73,9 @@ namespace LoveNes
                 _cpuBus.AddSlave(i, _ppu);
 
             // APU
-            _cpuBus.AddSlave(0x4017, _apu.FrameController, Bus.SlaveAccess.Write);
+            _cpuBus.AddSlave(0x4000, _apu);
+            _cpuBus.AddSlave(0x4015, _apu.Status);
+            _cpuBus.AddSlave(0x4017, _apu.FrameCounter, Bus.SlaveAccess.Write);
 
             // OAM DMA
             var oamDma = new OamDmaController(_cpuBus.MasterClient);

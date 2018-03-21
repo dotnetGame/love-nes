@@ -9,7 +9,7 @@ namespace LoveNes
     /// <summary>
     /// 6502 CPU
     /// </summary>
-    public class CPU : IClockSink
+    public partial class CPU : IClockSink, IInterruptReceiver
     {
         /// <summary>
         /// 寄存器组
@@ -26,12 +26,7 @@ namespace LoveNes
         private OpCodeStatus _nextOpCodeStatus;
         private bool _readingOpCode = false;
 
-        private AddressDestination _addressDst;
-        private AddressDirection _addressDir;
-        private AddressOperation _addressOper;
-
-        private byte _tempValue;
-        private ushort _tempValue16;
+        private AddressState _addressState;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CPU"/> class.
@@ -42,770 +37,15 @@ namespace LoveNes
             _masterClient = masterClient;
         }
 
-        private void ExecuteOpCode()
-        {
-            if (!_masterClient.TryAcquire()) return;
-
-            if (_nextMicroCode == MicroCode.None)
-            {
-                if (_nextOpCodeStatus == OpCodeStatus.None)
-                {
-                    if (!_readingOpCode)
-                    {
-                        _readingOpCode = true;
-                        _masterClient.Read(Registers.PC++);
-                        return;
-                    }
-                    else
-                    {
-                        _readingOpCode = false;
-                        var opCode = (OpCode)_masterClient.Value;
-
-                        Console.WriteLine(opCode);
-                        _nextOpCodeStatus = ExecuteOpCode(opCode);
-                    }
-                }
-
-                (_nextMicroCode, _nextOpCodeStatus) = ExecuteOpCode(_nextOpCodeStatus);
-            }
-
-            _nextMicroCode = ExecuteMicroCode(_nextMicroCode);
-        }
-
-        private OpCodeStatus ExecuteOpCode(OpCode opCode)
-        {
-            switch (opCode)
-            {
-                case OpCode.SEI_Implied:
-                    return OpCodeStatus.SEI_1_Implied;
-                case OpCode.CLD_Implied:
-                    return OpCodeStatus.CLD_1_Implied;
-                case OpCode.LDX_Immediate:
-                    return OpCodeStatus.LDX_1_Immediate;
-                case OpCode.STX_Absolute:
-                    return OpCodeStatus.STX_1_Absolute;
-                case OpCode.TXS_Implied:
-                    return OpCodeStatus.TXS_1_Implied;
-                case OpCode.INX_Implied:
-                    return OpCodeStatus.INX_1_Implied;
-                case OpCode.LDA_Immediate:
-                    return OpCodeStatus.LDA_1_Immediate;
-                case OpCode.LDA_Absolute:
-                    return OpCodeStatus.LDA_1_Absolute;
-                case OpCode.JSR_Absolute:
-                    return OpCodeStatus.JSR_1_Absolute;
-                case OpCode.BIT_Absolute:
-                    return OpCodeStatus.BIT_1_Absolute;
-                case OpCode.BPL_Relative:
-                    return OpCodeStatus.BPL_1_Relative;
-                case OpCode.TXA_Implied:
-                    return OpCodeStatus.TXA_1_Implied;
-                case OpCode.STA_ZeroPageX:
-                    return OpCodeStatus.STA_1_ZeroPageX;
-                case OpCode.STA_AbsoluteX:
-                    return OpCodeStatus.STA_1_AbsoluteX;
-                case OpCode.BNE_Relative:
-                    return OpCodeStatus.BNE_1_Relative;
-                case OpCode.LDY_Immediate:
-                    return OpCodeStatus.LDY_1_Immediate;
-                case OpCode.CMP_Absolute:
-                    return OpCodeStatus.CMP_1_Absolute;
-                case OpCode.STA_Absolute:
-                    return OpCodeStatus.STA_1_Absolute;
-                case OpCode.STY_Absolute:
-                    return OpCodeStatus.STY_1_Absolute;
-                case OpCode.STA_ZeroPage:
-                    return OpCodeStatus.STA_1_ZeroPage;
-                case OpCode.LDA_ZeroPage:
-                    return OpCodeStatus.LDA_1_ZeroPage;
-                case OpCode.AND_Immediate:
-                    return OpCodeStatus.AND_1_Immediate;
-                case OpCode.TAX_Implied:
-                    return OpCodeStatus.TAX_1_Implied;
-                case OpCode.STX_ZeroPage:
-                    return OpCodeStatus.STX_1_ZeroPage;
-                case OpCode.RTS_Implied:
-                    return OpCodeStatus.RTS_1_Implied;
-                case OpCode.LDA_AbsoluteX:
-                    return OpCodeStatus.LDA_1_AbsoluteX;
-                case OpCode.CPX_Immediate:
-                    return OpCodeStatus.CPX_1_Immediate;
-                case OpCode.BEQ_Relative:
-                    return OpCodeStatus.BEQ_1_Relative;
-                default:
-                    throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
-            }
-        }
-
-        public enum OpCode : byte
-        {
-            /// <summary>
-            /// Branch if Positive
-            /// </summary>
-            BPL_Relative = 0x10,
-
-            /// <summary>
-            /// Jump to Subroutine
-            /// </summary>
-            JSR_Absolute = 0x20,
-
-            /// <summary>
-            /// Logical AND - Immediate
-            /// </summary>
-            AND_Immediate = 0x29,
-
-            /// <summary>
-            /// Bit Test
-            /// </summary>
-            BIT_Absolute = 0x2C,
-
-            /// <summary>
-            /// Return from Subroutine
-            /// </summary>
-            RTS_Implied = 0x60,
-
-            ADC_Immediate = 0x69,
-
-            /// <summary>
-            /// Set Interrupt Disable
-            /// </summary>
-            SEI_Implied = 0x78,
-
-            /// <summary>
-            /// Store A Register - Zero Page
-            /// </summary>
-            STA_ZeroPage = 0x85,
-
-            /// <summary>
-            /// Store X Register - Zero Page
-            /// </summary>
-            STX_ZeroPage = 0x86,
-
-            /// <summary>
-            /// Transfer X to Accumulator
-            /// </summary>
-            TXA_Implied = 0x8A,
-
-            /// <summary>
-            /// Store Y Register - Absolute
-            /// </summary>
-            STY_Absolute = 0x8C,
-
-            /// <summary>
-            /// Store A Register - Absolute
-            /// </summary>
-            STA_Absolute = 0x8D,
-
-            /// <summary>
-            /// Store X Register - Absolute
-            /// </summary>
-            STX_Absolute = 0x8E,
-
-            /// <summary>
-            /// Store Accumulator - Zero Page X
-            /// </summary>
-            STA_ZeroPageX = 0x95,
-
-            /// <summary>
-            /// Transfer X to Stack Pointer
-            /// </summary>
-            TXS_Implied = 0x9A,
-
-            /// <summary>
-            /// Store Accumulator - Absolute X
-            /// </summary>
-            STA_AbsoluteX = 0x9D,
-
-            /// <summary>
-            /// Load Y Register - Immediate
-            /// </summary>
-            LDY_Immediate = 0xA0,
-
-            /// <summary>
-            /// Load X Register - Immediate
-            /// </summary>
-            LDX_Immediate = 0xA2,
-
-            /// <summary>
-            /// Load Accumulator - Zero Page
-            /// </summary>
-            LDA_ZeroPage = 0xA5,
-
-            /// <summary>
-            /// Load Accumulator - Immediate
-            /// </summary>
-            LDA_Immediate = 0xA9,
-
-            /// <summary>
-            /// Transfer Accumulator to X
-            /// </summary>
-            TAX_Implied = 0xAA,
-
-            /// <summary>
-            /// Load Accumulator - Absolute
-            /// </summary>
-            LDA_Absolute = 0xAD,
-
-            /// <summary>
-            /// Load Accumulator - Absolute X
-            /// </summary>
-            LDA_AbsoluteX = 0xBD,
-
-            /// <summary>
-            /// Compare - Absolute
-            /// </summary>
-            CMP_Absolute = 0xCD,
-
-            /// <summary>
-            /// Branch if Not Equal
-            /// </summary>
-            BNE_Relative = 0xD0,
-
-            /// <summary>
-            /// Clear Decimal Mode
-            /// </summary>
-            CLD_Implied = 0xD8,
-
-            /// <summary>
-            /// Compare X Register - Immediate
-            /// </summary>
-            CPX_Immediate = 0xE0,
-
-            /// <summary>
-            /// Increment X Register
-            /// </summary>
-            INX_Implied = 0xE8,
-
-            /// <summary>
-            /// Branch if Equal
-            /// </summary>
-            BEQ_Relative = 0xF0
-        }
-
-        public enum OpCodeStatus : byte
+        private enum AddressOperand
         {
             None,
-
-            Relative_Jump,
-
-            BNE_1_Relative,
-
-            BPL_1_Relative,
-
-            JSR_1_Absolute,
-            JSR_2_Absolute,
-            JSR_3_Absolute,
-
-            BIT_1_Absolute,
-
-            RTS_1_Implied,
-            RTS_2_Implied,
-            RTS_3_Implied,
-            RTS_4_Implied,
-            RTS_5_Implied,
-
-            ADC_1_Addressing_Immediate,
-            ADC_1_Addressing_ZeroPage,
-            ADC_1_Addressing_ZeroPageX,
-            ADC_1_Addressing_Absolute,
-            ADC_1_Addressing_AbsoluteX,
-            ADC_1_Addressing_AbsoluteY,
-            ADC_1_Addressing_IndirectX,
-            ADC_1_Addressing_IndirectY,
-            ADC_2,
-
-            AND_1_Immediate,
-
-            SEI_1_Implied,
-
-            TXA_1_Implied,
-
-            STY_1_Absolute,
-
-            STA_1_ZeroPage,
-            STA_1_ZeroPageX,
-            STA_1_Absolute,
-            STA_1_AbsoluteX,
-
-            STX_1_ZeroPage,
-            STX_1_Absolute,
-
-            TXS_1_Implied,
-
-            LDX_1_Immediate,
-
-            LDY_1_Immediate,
-
-            TAX_1_Implied,
-
-            LDA_1_Immediate,
-            LDA_1_Absolute,
-            LDA_1_AbsoluteX,
-            LDA_1_ZeroPage,
-
-            CMP_1_Absolute,
-
-            CLD_1_Implied,
-
-            CPX_1_Immediate,
-
-            INX_1_Implied,
-
-            BEQ_1_Relative
-        }
-
-        private (MicroCode nextMicroCode, OpCodeStatus nextOpCodeStatus) ExecuteOpCode(OpCodeStatus code)
-        {
-            switch (code)
-            {
-                case OpCodeStatus.Relative_Jump:
-                    _addressDst = AddressDestination.PC;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Jump;
-                    return (MicroCode.Relative, OpCodeStatus.None);
-
-                case OpCodeStatus.SEI_1_Implied:
-                    return (MicroCode.SEI, OpCodeStatus.None);
-                case OpCodeStatus.STY_1_Absolute:
-                    _addressDst = AddressDestination.Y;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.STA_1_ZeroPage:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
-                case OpCodeStatus.STA_1_ZeroPageX:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.ZeroPageX_1, OpCodeStatus.None);
-                case OpCodeStatus.STA_1_AbsoluteX:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.AbsoluteX_1, OpCodeStatus.None);
-                case OpCodeStatus.STA_1_Absolute:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.STX_1_ZeroPage:
-                    _addressDst = AddressDestination.X;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
-                case OpCodeStatus.STX_1_Absolute:
-                    _addressDst = AddressDestination.X;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Write;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.CLD_1_Implied:
-                    return (MicroCode.CLD, OpCodeStatus.None);
-                case OpCodeStatus.LDY_1_Immediate:
-                    _addressDst = AddressDestination.Y;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
-                case OpCodeStatus.LDX_1_Immediate:
-                    _addressDst = AddressDestination.X;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
-                case OpCodeStatus.TAX_1_Implied:
-                    return (MicroCode.TAX, OpCodeStatus.None);
-                case OpCodeStatus.TXA_1_Implied:
-                    return (MicroCode.TXA, OpCodeStatus.None);
-                case OpCodeStatus.TXS_1_Implied:
-                    return (MicroCode.TXS, OpCodeStatus.None);
-                case OpCodeStatus.INX_1_Implied:
-                    _addressDst = AddressDestination.X;
-                    _addressOper = AddressOperation.Inc;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Register, OpCodeStatus.None);
-                case OpCodeStatus.LDA_1_Immediate:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
-                case OpCodeStatus.LDA_1_Absolute:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.LDA_1_AbsoluteX:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.AbsoluteX_1, OpCodeStatus.None);
-                case OpCodeStatus.LDA_1_ZeroPage:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
-                case OpCodeStatus.JSR_1_Absolute:
-                    _tempValue = (byte)((Registers.PC + 1) >> 8);
-                    return (MicroCode.Push, OpCodeStatus.JSR_2_Absolute);
-                case OpCodeStatus.JSR_2_Absolute:
-                    _tempValue = (byte)((Registers.PC + 1) & 0xFF);
-                    return (MicroCode.Push, OpCodeStatus.JSR_3_Absolute);
-                case OpCodeStatus.JSR_3_Absolute:
-                    _addressDst = AddressDestination.PC;
-                    _addressOper = AddressOperation.None;
-                    _addressDir = AddressDirection.Jump;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.BIT_1_Absolute:
-                    _addressDst = AddressDestination.None;
-                    _addressOper = AddressOperation.BitTest;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.BPL_1_Relative:
-                    if (Status.N)
-                    {
-                        Registers.PC++;
-                        return (MicroCode.Nop, OpCodeStatus.None);
-                    }
-                    else
-                    {
-                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
-                    }
-
-                case OpCodeStatus.BNE_1_Relative:
-                    if (Status.Z)
-                    {
-                        Registers.PC++;
-                        return (MicroCode.Nop, OpCodeStatus.None);
-                    }
-                    else
-                    {
-                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
-                    }
-
-                case OpCodeStatus.BEQ_1_Relative:
-                    if (Status.Z)
-                    {
-                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
-                    }
-                    else
-                    {
-                        Registers.PC++;
-                        return (MicroCode.Nop, OpCodeStatus.None);
-                    }
-
-                case OpCodeStatus.CMP_1_Absolute:
-                    _addressDst = AddressDestination.None;
-                    _addressOper = AddressOperation.Compare;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Absolute_1, OpCodeStatus.None);
-                case OpCodeStatus.CPX_1_Immediate:
-                    _addressDst = AddressDestination.None;
-                    _addressOper = AddressOperation.CompareX;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
-                case OpCodeStatus.AND_1_Immediate:
-                    _addressDst = AddressDestination.A;
-                    _addressOper = AddressOperation.And;
-                    _addressDir = AddressDirection.Read;
-                    return (MicroCode.Immediate, OpCodeStatus.None);
-                case OpCodeStatus.RTS_1_Implied:
-                    return (MicroCode.Pop, OpCodeStatus.RTS_2_Implied);
-                case OpCodeStatus.RTS_2_Implied:
-                    _tempValue16 = _tempValue;
-                    return (MicroCode.Pop, OpCodeStatus.RTS_3_Implied);
-                case OpCodeStatus.RTS_3_Implied:
-                    _tempValue16 |= (ushort)(_tempValue << 8);
-                    return (MicroCode.Nop, OpCodeStatus.RTS_4_Implied);
-                case OpCodeStatus.RTS_4_Implied:
-                    _tempValue16++;
-                    return (MicroCode.Nop, OpCodeStatus.RTS_5_Implied);
-                case OpCodeStatus.RTS_5_Implied:
-                    Registers.PC = _tempValue16;
-                    return (MicroCode.Nop, OpCodeStatus.None);
-                default:
-                    throw new InvalidProgramException($"invalid op code status: 0x{code:X}.");
-            }
-        }
-
-        private enum MicroCode : byte
-        {
-            None,
-
-            Nop,
-
-            Register,
-
-            Immediate,
-
-            Relative,
-
-            ZeroPage_1,
-            ZeroPage_2,
-
-            ZeroPageX_1,
-            ZeroPageX_2,
-            ZeroPageX_3,
-
-            ZeroPageY_1,
-            ZeroPageY_2,
-            ZeroPageY_3,
-
-            Absolute_1,
-            Absolute_2,
-            Absolute_3,
-
-            AbsoluteX_1,
-            AbsoluteX_2,
-            AbsoluteX_3,
-            AbsoluteX_4,
-
-            AbsoluteY_1,
-            AbsoluteY_2,
-            AbsoluteY_3,
-
-            IndirectX_1,
-            IndirectX_2,
-            IndirectX_3,
-            IndirectX_4,
-            IndirectX_5,
-
-            IndirectY_1,
-            IndirectY_2,
-            IndirectY_3,
-            IndirectY_4,
-
-            Push,
-            Pop,
-
-            ADC,
-
-            SEI,
-
-            TAX,
-            TXA,
-            TXS,
-
-            CLD
-        }
-
-        private MicroCode ExecuteMicroCode(MicroCode code)
-        {
-            switch (code)
-            {
-                case MicroCode.Nop:
-                    return MicroCode.None;
-
-                case MicroCode.Register:
-                    DispatchRegisterAddressing();
-                    return MicroCode.None;
-
-                case MicroCode.Immediate:
-                    DispatchMemoryAddressing(Registers.PC++);
-                    return MicroCode.None;
-
-                case MicroCode.Relative:
-                    _masterClient.Read(Registers.PC++);
-                    DispatchMemoryAddressing((ushort)(Registers.PC + (sbyte)_masterClient.Value));
-                    return MicroCode.None;
-
-                case MicroCode.Absolute_1:
-                    _masterClient.Read(Registers.PC++);
-                    _tempValue = _masterClient.Value;
-                    return MicroCode.Absolute_2;
-                case MicroCode.Absolute_2:
-                    _masterClient.Read(Registers.PC++);
-                    return MicroCode.Absolute_3;
-                case MicroCode.Absolute_3:
-                    DispatchMemoryAddressing((ushort)((_masterClient.Value << 8) | (_tempValue & 0xFF)));
-                    return MicroCode.None;
-
-                case MicroCode.ZeroPage_1:
-                    _masterClient.Read(Registers.PC++);
-                    _tempValue = _masterClient.Value;
-                    return MicroCode.ZeroPage_2;
-                case MicroCode.ZeroPage_2:
-                    DispatchMemoryAddressing(_tempValue);
-                    return MicroCode.None;
-
-                case MicroCode.ZeroPageX_1:
-                    _masterClient.Read(Registers.PC++);
-                    _tempValue = _masterClient.Value;
-                    return MicroCode.ZeroPageX_2;
-                case MicroCode.ZeroPageX_2:
-                    _tempValue += Registers.X;
-                    return MicroCode.ZeroPageX_3;
-                case MicroCode.ZeroPageX_3:
-                    DispatchMemoryAddressing(_tempValue);
-                    return MicroCode.None;
-
-                case MicroCode.AbsoluteX_1:
-                    _masterClient.Read(Registers.PC++);
-                    _tempValue = _masterClient.Value;
-                    return MicroCode.AbsoluteX_2;
-                case MicroCode.AbsoluteX_2:
-                    _masterClient.Read(Registers.PC++);
-                    _tempValue16 = (ushort)((_masterClient.Value << 8) | (_tempValue & 0xFF));
-                    return MicroCode.AbsoluteX_3;
-                case MicroCode.AbsoluteX_3:
-                    _tempValue16 += Registers.X;
-                    return MicroCode.AbsoluteX_4;
-                case MicroCode.AbsoluteX_4:
-                    DispatchMemoryAddressing(_tempValue16);
-                    return MicroCode.None;
-                /*
-                case MicroCode.ZeroPage_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.ZeroPage_2;
-                    break;
-                case MicroCode.ZeroPage_2:
-                    _masterClient.Read(_addressResult);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.ZeroPageY_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.ZeroPageY_2;
-                    break;
-                case MicroCode.ZeroPageY_2:
-                    _addressResult += Registers.Y;
-                    _nextMicroCode = MicroCode.ZeroPageY_3;
-                    break;
-                case MicroCode.ZeroPageY_3:
-                    _masterClient.Read(_addressResult);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.Absolute_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.Absolute_2;
-                    break;
-                case MicroCode.Absolute_2:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.Absolute_3;
-                    break;
-                case MicroCode.Absolute_3:
-                    _masterClient.Read((ushort)(_addressResult | _addressResult2 << 8));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.AbsoluteY_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_2;
-                    break;
-                case MicroCode.AbsoluteY_2:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_3;
-                    break;
-                case MicroCode.AbsoluteY_3:
-                    _masterClient.Read((ushort)((_addressResult | _addressResult2 << 8) + Registers.Y));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.IndirectX_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectX_2;
-                    break;
-                case MicroCode.IndirectX_2:
-                    _addressResult = (byte)(_addressResult + Registers.X);
-                    _addressResult2 = (byte)(_addressResult + 1);
-                    _nextMicroCode = MicroCode.IndirectX_3;
-                    break;
-                case MicroCode.IndirectX_3:
-                    _masterClient.Read(_addressResult);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectX_4;
-                    break;
-                case MicroCode.IndirectX_4:
-                    _masterClient.Read(_addressResult2);
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectX_5;
-                    break;
-                case MicroCode.IndirectX_5:
-                    _masterClient.Read((ushort)(_addressResult | _addressResult2 << 8));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.IndirectY_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectY_2;
-                    break;
-                case MicroCode.IndirectY_2:
-                    _masterClient.Read((byte)(_addressResult + 1));
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectY_3;
-                    break;
-                case MicroCode.IndirectY_3:
-                    _masterClient.Read(_addressResult);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.IndirectY_4;
-                    break;
-                case MicroCode.IndirectY_4:
-                    _masterClient.Read((ushort)((_addressResult | _addressResult2 << 8) + Registers.Y));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.ADC:
-                    {
-                        var result = (ushort)(Registers.A + _addressResult + Status.C);
-                        UpdateCVN(Registers.A, _addressResult, result);
-                        Registers.A = (byte)result;
-                        _nextMicroCode = MicroCode.None;
-                    }
-
-                    break;
-                    */
-                case MicroCode.Push:
-                    _masterClient.Value = _tempValue;
-                    _masterClient.Write((ushort)(0x100u + Registers.S--));
-                    return MicroCode.None;
-                case MicroCode.Pop:
-                    _masterClient.Read((ushort)(0x100u + ++Registers.S));
-                    _tempValue = _masterClient.Value;
-                    return MicroCode.None;
-                case MicroCode.SEI:
-                    Status.I = true;
-                    return MicroCode.None;
-                case MicroCode.TAX:
-                    Registers.X = Registers.A;
-                    UpdateNZ(Registers.X);
-                    return MicroCode.None;
-                case MicroCode.TXA:
-                    Registers.A = Registers.X;
-                    UpdateNZ(Registers.A);
-                    return MicroCode.None;
-                case MicroCode.TXS:
-                    Registers.S = Registers.X;
-                    return MicroCode.None;
-                case MicroCode.CLD:
-                    Status.D = false;
-                    return MicroCode.None;
-                default:
-                    throw new InvalidProgramException($"invalid micro code: 0x{code:X}.");
-            }
-        }
-
-        private enum AddressDestination
-        {
-            None,
+            Memory,
             X,
             Y,
             A,
+            S,
             PC
-        }
-
-        private enum AddressDirection
-        {
-            Read,
-            Write,
-            Jump
         }
 
         private enum AddressOperation
@@ -814,133 +54,139 @@ namespace LoveNes
             Inc,
             BitTest,
             Compare,
-            CompareX,
             And
         }
 
-        private void DispatchRegisterAddressing()
+        private struct AddressState
         {
-            switch (_addressDst)
+            public AddressOperand SourceA;
+
+            public AddressOperand SourceB;
+
+            public AddressOperand Destination;
+
+            public AddressOperation Operation;
+
+            public bool AffectFlags;
+
+            public ushort MemoryAddress;
+
+            public byte ResultA;
+            public byte ResultB;
+
+            public void Set(AddressOperand sourceA, AddressOperand sourceB, AddressOperand destination, AddressOperation operation, bool affectFlags)
             {
-                case AddressDestination.X:
-                    Registers.X = DoOperation(Registers.X, true);
-                    break;
-                case AddressDestination.A:
-                    Registers.A = DoOperation(Registers.A, true);
-                    break;
-                default:
-                    throw new ArgumentException(nameof(_addressDst));
+                SourceA = sourceA;
+                SourceB = sourceB;
+                Destination = destination;
+                Operation = operation;
+                AffectFlags = affectFlags;
             }
         }
 
-        private void DispatchMemoryAddressing(ushort address)
+        private void DispatchAddressing()
         {
-            switch (_addressDir)
+            void ReadSource(AddressOperand addressOperand, ref byte result)
             {
-                case AddressDirection.Read:
-                    _masterClient.Read(address);
-                    switch (_addressDst)
-                    {
-                        case AddressDestination.None:
-                            DoOperation(_masterClient.Value, true);
-                            break;
-                        case AddressDestination.X:
-                            Registers.X = DoOperation(_masterClient.Value, true);
-                            break;
-                        case AddressDestination.Y:
-                            Registers.Y = DoOperation(_masterClient.Value, true);
-                            break;
-                        case AddressDestination.A:
-                            Registers.A = DoOperation(_masterClient.Value, true);
-                            break;
-                        default:
-                            throw new ArgumentException(nameof(_addressDst));
-                    }
+                switch (addressOperand)
+                {
+                    // In Result
+                    case AddressOperand.None:
+                        break;
+                    case AddressOperand.Memory:
+                        if (_addressState.Destination != AddressOperand.PC)
+                        {
+                            _masterClient.Read(_addressState.MemoryAddress);
+                            result = _masterClient.Value;
+                        }
 
-                    break;
-                case AddressDirection.Write:
-                    switch (_addressDst)
-                    {
-                        case AddressDestination.X:
-                            _masterClient.Value = Registers.X;
-                            break;
-                        case AddressDestination.Y:
-                            _masterClient.Value = Registers.Y;
-                            break;
-                        case AddressDestination.A:
-                            _masterClient.Value = Registers.A;
-                            break;
-                        default:
-                            throw new ArgumentException(nameof(_addressDst));
-                    }
-
-                    _masterClient.Write(address);
-                    break;
-                case AddressDirection.Jump:
-                    switch (_addressDst)
-                    {
-                        case AddressDestination.PC:
-                            Registers.PC = address;
-                            break;
-                        default:
-                            throw new ArgumentException(nameof(_addressDst));
-                    }
-
-                    break;
-                default:
-                    throw new ArgumentException(nameof(_addressDir));
+                        break;
+                    case AddressOperand.X:
+                        result = Registers.X;
+                        break;
+                    case AddressOperand.Y:
+                        result = Registers.Y;
+                        break;
+                    case AddressOperand.A:
+                        result = Registers.A;
+                        break;
+                    default:
+                        throw new ArgumentException(nameof(_addressState.SourceA));
+                }
             }
-        }
 
-        private byte DoOperation(byte value, bool affectFlag)
-        {
-            switch (_addressOper)
+            // Read Source
+            ReadSource(_addressState.SourceA, ref _addressState.ResultA);
+            ReadSource(_addressState.SourceB, ref _addressState.ResultB);
+
+            // Do Operation
+            switch (_addressState.Operation)
             {
                 case AddressOperation.None:
-                    if (affectFlag) UpdateNZ(value);
-                    return value;
+                    if (_addressState.AffectFlags)
+                        UpdateNZ(_addressState.ResultA);
+                    break;
                 case AddressOperation.Inc:
-                    value += 1;
-                    if (affectFlag) UpdateNZ(value);
-                    return value;
+                    _addressState.ResultA++;
+                    if (_addressState.AffectFlags)
+                        UpdateNZ(_addressState.ResultA);
+                    break;
                 case AddressOperation.BitTest:
-                    if (affectFlag)
+                    if (_addressState.AffectFlags)
                     {
-                        Status.Z = (Registers.A & value) == 0;
-                        Status.N = ((value & 0x80) >> 7) != 0;
-                        Status.V = ((value & 0x40) >> 6) != 0;
+                        Status.Z = (_addressState.ResultA & _addressState.ResultB) == 0;
+                        Status.N = ((_addressState.ResultB & 0x80) >> 7) != 0;
+                        Status.V = ((_addressState.ResultB & 0x40) >> 6) != 0;
                     }
 
-                    return value;
+                    break;
                 case AddressOperation.Compare:
-                    if (affectFlag)
+                    if (_addressState.AffectFlags)
                     {
-                        Status.C = Registers.A >= value;
-                        Status.Z = Registers.A == value;
-                        Status.N = Registers.A - value < 0;
+                        Status.C = _addressState.ResultA >= _addressState.ResultB;
+                        Status.Z = _addressState.ResultA == _addressState.ResultB;
+                        Status.N = _addressState.ResultA - _addressState.ResultB < 0;
                     }
 
-                    return value;
-                case AddressOperation.CompareX:
-                    if (affectFlag)
-                    {
-                        Status.C = Registers.X >= value;
-                        Status.Z = Registers.X == value;
-                        Status.N = Registers.X - value < 0;
-                    }
-
-                    return value;
+                    break;
                 case AddressOperation.And:
-                    value &= Registers.A;
-                    if (affectFlag)
-                    {
+                    if (_addressState.AffectFlags)
                         Status.Z = Registers.A == 0;
-                        Status.N = ((value & 0x80) >> 7) != 0;
-                    }
 
-                    return value;
+                    _addressState.ResultA &= _addressState.ResultB;
+                    if (_addressState.AffectFlags)
+                        Status.N = ((_addressState.ResultA & 0x80) >> 7) != 0;
+                    break;
                 default:
-                    throw new ArgumentException(nameof(_addressOper));
+                    throw new ArgumentException(nameof(_addressState.Operation));
+            }
+
+            // Write Destination
+            switch (_addressState.Destination)
+            {
+                case AddressOperand.None:
+                    break;
+                case AddressOperand.Memory:
+                    _masterClient.Value = _addressState.ResultA;
+                    _masterClient.Write(_addressState.MemoryAddress);
+                    break;
+                case AddressOperand.X:
+                    Registers.X = _addressState.ResultA;
+                    break;
+                case AddressOperand.Y:
+                    Registers.Y = _addressState.ResultA;
+                    break;
+                case AddressOperand.A:
+                    Registers.A = _addressState.ResultA;
+                    break;
+                case AddressOperand.S:
+                    Registers.S = _addressState.ResultA;
+                    break;
+                case AddressOperand.PC:
+                    Registers.PC = _addressState.MemoryAddress;
+                    break;
+                default:
+                    throw new ArgumentException(nameof(_addressState.Destination));
             }
         }
 
@@ -961,11 +207,15 @@ namespace LoveNes
             0xFFFA, 0xFFFC, 0xFFFE, 0xFFFE
         };
 
-        private void Interrupt(InterruptType interrupt)
+        public void Interrupt(InterruptType interrupt)
         {
             Status.I = true;
             var vector = _interruptVectors[(byte)interrupt];
             Registers.PC = ReadUShort(vector);
+
+            _nextMicroCode = MicroCode.None;
+            _nextOpCodeStatus = OpCodeStatus.None;
+            _readingOpCode = false;
         }
 
         private ushort ReadUShort(ushort address)
@@ -1141,5 +391,10 @@ namespace LoveNes
             get => _value[0b1000_0000];
             set => _value[0b1000_0000] = value;
         }
+    }
+
+    public interface IInterruptReceiver
+    {
+        void Interrupt(InterruptType interruptType);
     }
 }
