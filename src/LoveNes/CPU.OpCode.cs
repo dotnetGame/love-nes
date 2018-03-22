@@ -34,6 +34,11 @@ namespace LoveNes
             RTI_Implied = 0x40,
 
             /// <summary>
+            /// Jump - Absolute
+            /// </summary>
+            JMP_Absolute = 0x4C,
+
+            /// <summary>
             /// Return from Subroutine
             /// </summary>
             RTS_Implied = 0x60,
@@ -260,6 +265,8 @@ namespace LoveNes
                     return OpCodeStatus.DEX_1_Implied;
                 case OpCode.RTI_Implied:
                     return OpCodeStatus.RTI_1_Implied;
+                case OpCode.JMP_Absolute:
+                    return OpCodeStatus.JMP_1_Absolute;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }

@@ -35,6 +35,8 @@ namespace LoveNes
             RTI_4_Implied,
             RTI_5_Implied,
 
+            JMP_1_Absolute,
+
             RTS_1_Implied,
             RTS_2_Implied,
             RTS_3_Implied,
@@ -291,6 +293,10 @@ namespace LoveNes
                 case OpCodeStatus.RTI_5_Implied:
                     _addressState.Set(AddressOperand.None, AddressOperand.None, AddressOperand.PC, AddressOperation.None, false);
                     return (MicroCode.Addressing, OpCodeStatus.None);
+
+                case OpCodeStatus.JMP_1_Absolute:
+                    _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.PC, AddressOperation.None, false);
+                    return (MicroCode.Absolute_1, OpCodeStatus.None);
 
                 case OpCodeStatus.RTS_1_Implied:
                     return (MicroCode.Pop, OpCodeStatus.RTS_2_Implied);

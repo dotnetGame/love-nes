@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using LoveNes.Host;
 
 namespace LoveNes
 {
@@ -26,7 +27,7 @@ namespace LoveNes
 
         public Cartridge Cartridge { get; }
 
-        public NesSystem()
+        public NesSystem(IHostGraphics hostGraphics)
         {
             _clock = new Clock();
             _cpuBus = new Bus();
@@ -43,7 +44,7 @@ namespace LoveNes
             _apu = new APU();
 
             _ppuBus = new Bus();
-            _ppu = new PPU(_ppuBus, _cpu);
+            _ppu = new PPU(_ppuBus, _cpu, hostGraphics);
             _clock.AddSink(_ppu);
 
             // 板卡

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Text;
+using LoveNes.Host;
 
 namespace LoveNes
 {
@@ -24,6 +25,7 @@ namespace LoveNes
         private ushort _cntTile;
 
         private ushort _nametableBaseAddr;
+        private ushort _bgPatternTableBaseAddr;
 
         private ushort _ppuAddr;
         private bool _writingPPUAddrLow;
@@ -34,11 +36,13 @@ namespace LoveNes
 
         private readonly IBusMasterClient _masterClient;
         private readonly IInterruptReceiver _interruptReceiver;
+        private readonly IHostGraphics _hostGraphics;
 
-        public PPU(IBusMasterClient busMasterClient, IInterruptReceiver interruptReceiver)
+        public PPU(IBusMasterClient busMasterClient, IInterruptReceiver interruptReceiver, IHostGraphics hostGraphics)
         {
             _masterClient = busMasterClient;
             _interruptReceiver = interruptReceiver;
+            _hostGraphics = hostGraphics;
             _oamMemory = new byte[64 * 4];
         }
 
@@ -52,6 +56,7 @@ namespace LoveNes
             _nextTileFetchStatus = TileFetchStatus.Nametable_1;
 
             UpdateNametableBaseAddress();
+            UpdateBgPatternTableBaseAddress();
         }
 
         void IClockSink.OnReset()
@@ -101,11 +106,13 @@ namespace LoveNes
 
         private void DoVerticalBlankingLine()
         {
-            if (_dot == 1)
+            if (_dot == 1 && _scanline == 241)
             {
+                _cntTile = 0;
                 _status.V = true;
                 if (_controller.V)
                     _interruptReceiver.Interrupt(InterruptType.NMI);
+                _hostGraphics.Flip();
             }
         }
 
@@ -127,18 +134,22 @@ namespace LoveNes
 
         private TileFetchStatus _nextTileFetchStatus;
         private byte _nametable;
-        /*private byte _attribute;
+        /*private byte _attribute;*/
         private byte _bitmapLow;
-        private byte _bitmapHigh;*/
+        private byte _bitmapHigh;
 
         private void DoVisibleScanline()
         {
             if (_dot >= 1 && _dot <= 256)
             {
+                var tX = (byte)(_cntTile % 32);
+                var tY = (byte)(_cntTile / 32 / 8);
+                var tileId = tY * 32 + tX;
+
                 switch (_nextTileFetchStatus)
                 {
                     case TileFetchStatus.Nametable_1:
-                        _masterClient.Read(MirrorNametableAddress((ushort)(_nametableBaseAddr + _cntTile)));
+                        _masterClient.Read(MirrorNametableAddress((ushort)(_nametableBaseAddr + tileId)));
                         _nextTileFetchStatus = TileFetchStatus.Nametable_2;
                         break;
                     case TileFetchStatus.Nametable_2:
@@ -146,21 +157,52 @@ namespace LoveNes
                         _nextTileFetchStatus = TileFetchStatus.Attribute_1;
                         break;
                     case TileFetchStatus.Attribute_1:
+                        _nextTileFetchStatus = TileFetchStatus.Attribute_2;
                         break;
                     case TileFetchStatus.Attribute_2:
+                        _nextTileFetchStatus = TileFetchStatus.BitmapLow_1;
                         break;
                     case TileFetchStatus.BitmapLow_1:
+                        _masterClient.Read(GetBgPatternTableAddress());
+                        _nextTileFetchStatus = TileFetchStatus.BitmapLow_2;
                         break;
                     case TileFetchStatus.BitmapLow_2:
+                        _bitmapLow = _masterClient.Value;
+                        _nextTileFetchStatus = TileFetchStatus.BitmapHigh_1;
                         break;
                     case TileFetchStatus.BitmapHigh_1:
+                        _masterClient.Read((ushort)(GetBgPatternTableAddress() + 8));
+                        _nextTileFetchStatus = TileFetchStatus.BitmapHigh_2;
                         break;
                     case TileFetchStatus.BitmapHigh_2:
-                        break;
-                    default:
+                        _bitmapHigh = _masterClient.Value;
+                        OutputPixel();
+                        _cntTile++;
+                        _nextTileFetchStatus = TileFetchStatus.Nametable_1;
                         break;
                 }
             }
+        }
+
+        private void OutputPixel()
+        {
+            var tX = (byte)(_cntTile % 32);
+            var pY = (byte)(_cntTile / 32);
+
+            for (byte x = 0; x < 8; x++)
+            {
+                var mask = 1 << (7 - x);
+                var pixel = (_bitmapLow & mask) | ((_bitmapHigh & mask) << 1);
+
+                _hostGraphics.DrawPixel((byte)(tX * 8 + x), pY, (uint)pixel);
+            }
+        }
+
+        private ushort GetBgPatternTableAddress()
+        {
+            var pY = (byte)(_cntTile / 32);
+
+            return (ushort)(_bgPatternTableBaseAddr + _nametable * 16 + pY);
         }
 
         private ushort MirrorNametableAddress(ushort address)
@@ -168,12 +210,32 @@ namespace LoveNes
             switch (MirroringMode)
             {
                 case MirroringMode.Horizontal:
-                    return (ushort)(((address / 2) & 0x400) + (address % 0x400) + 0x2000);
+                    if (Offset(address, 0x2C00, out var offset))
+                        return (ushort)(0x2400 + offset);
+                    else if (Offset(address, 0x2800, out offset))
+                        return (ushort)(0x2400 + offset);
+                    else if (Offset(address, 0x2400, out offset))
+                        return (ushort)(0x2000 + offset);
+                    else
+                        return address;
                 case MirroringMode.Vertical:
-                    return (ushort)(address % 0x800 + 0x2000);
+                    if (Offset(address, 0x2C00, out offset))
+                        return (ushort)(0x2400 + offset);
+                    else if (Offset(address, 0x2800, out offset))
+                        return (ushort)(0x2000 + offset);
+                    else if (Offset(address, 0x2400, out offset))
+                        return (ushort)(0x2400 + offset);
+                    else
+                        return address;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(MirroringMode));
             }
+        }
+
+        private static bool Offset(ushort address, ushort baseAddress, out ushort offset)
+        {
+            offset = (ushort)(address - baseAddress);
+            return address >= baseAddress;
         }
 
         byte IBusSlave.Read(ushort address)
@@ -182,6 +244,7 @@ namespace LoveNes
             {
                 var value = _status.Value;
                 _status.V = false;
+                _writingPPUAddrLow = false;
                 return value;
             }
 
@@ -194,6 +257,7 @@ namespace LoveNes
             {
                 _controller.Value = value;
                 UpdateNametableBaseAddress();
+                UpdateBgPatternTableBaseAddress();
             }
             else if (address == 0x0001)
             {
@@ -218,9 +282,9 @@ namespace LoveNes
             else if (address == 0x0006)
             {
                 if (_writingPPUAddrLow)
-                    _ppuAddr = (ushort)((_ppuAddr & 0xFF00) | value);
+                    _ppuAddr |= value;
                 else
-                    _ppuAddr = (ushort)((_ppuAddr & 0xFF) | (value << 8));
+                    _ppuAddr = (ushort)(value << 8);
                 _writingPPUAddrLow = !_writingPPUAddrLow;
             }
             else if (address == 0x0007)
@@ -254,6 +318,11 @@ namespace LoveNes
                 default:
                     throw new ArgumentOutOfRangeException(nameof(_controller.N));
             }
+        }
+
+        private void UpdateBgPatternTableBaseAddress()
+        {
+            _bgPatternTableBaseAddr = _controller.B ? (ushort)0x1000 : (ushort)0;
         }
     }
 
@@ -319,8 +388,20 @@ namespace LoveNes
 
         public bool I
         {
+            get => _value[0b100];
+            set => _value[0b100] = value;
+        }
+
+        public bool S
+        {
             get => _value[0b1000];
             set => _value[0b1000] = value;
+        }
+
+        public bool B
+        {
+            get => _value[0b1_0000];
+            set => _value[0b1_0000] = value;
         }
     }
 
