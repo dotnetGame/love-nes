@@ -88,6 +88,10 @@ namespace LoveNes
             _ppuBus.AddSlave(0x2000, nametable0);
             var nametable1 = new OnChipRAM(0x400);
             _ppuBus.AddSlave(0x2400, nametable1);
+
+            var paletteRAM = new OnChipRAM(0x20);
+            for (ushort i = 0x3F00; i <= 0x3F20; i += 0x20)
+                _ppuBus.AddSlave(i, paletteRAM);
         }
 
         /// <summary>

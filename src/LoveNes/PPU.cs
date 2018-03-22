@@ -200,8 +200,7 @@ namespace LoveNes
 
         private ushort GetBgPatternTableAddress()
         {
-            var pY = (byte)(_cntTile / 32);
-
+            var pY = (byte)(_scanline % 8);
             return (ushort)(_bgPatternTableBaseAddr + _nametable * 16 + pY);
         }
 

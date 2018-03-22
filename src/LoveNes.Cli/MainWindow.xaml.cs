@@ -19,13 +19,13 @@ namespace LoveNes.Cli
 
         public MainWindow()
         {
+            _backBuffer = new uint[256 * 240];
+            _nesSystem = new NesSystem(new HostGraphics(this));
+
             this.InitializeComponent();
             this.AttachDevTools();
             Renderer.DrawFps = true;
             //Renderer.DrawDirtyRects = Renderer.DrawFps = true;
-
-            _backBuffer = new uint[256 * 240];
-            _nesSystem = new NesSystem(new HostGraphics(this));
         }
 
         private async void InitializeComponent()

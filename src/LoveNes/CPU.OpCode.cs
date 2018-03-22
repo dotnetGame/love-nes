@@ -14,6 +14,11 @@ namespace LoveNes
             BPL_Relative = 0x10,
 
             /// <summary>
+            /// Clear Carry Flag
+            /// </summary>
+            CLC_Implied = 0x18,
+
+            /// <summary>
             /// Jump to Subroutine
             /// </summary>
             JSR_Absolute = 0x20,
@@ -43,6 +48,9 @@ namespace LoveNes
             /// </summary>
             RTS_Implied = 0x60,
 
+            /// <summary>
+            /// Add with Carry - Immediate
+            /// </summary>
             ADC_Immediate = 0x69,
 
             /// <summary>
@@ -79,6 +87,11 @@ namespace LoveNes
             /// Store X Register - Absolute
             /// </summary>
             STX_Absolute = 0x8E,
+
+            /// <summary>
+            /// Branch if Carry Clear
+            /// </summary>
+            BCC_Relative = 0x90,
 
             /// <summary>
             /// Store Accumulator - Zero Page X
@@ -124,6 +137,11 @@ namespace LoveNes
             /// Transfer Accumulator to X
             /// </summary>
             TAX_Implied = 0xAA,
+
+            /// <summary>
+            /// Load Y Register - Absolute
+            /// </summary>
+            LDY_Absolute = 0xAC,
 
             /// <summary>
             /// Load Accumulator - Absolute
@@ -267,6 +285,14 @@ namespace LoveNes
                     return OpCodeStatus.RTI_1_Implied;
                 case OpCode.JMP_Absolute:
                     return OpCodeStatus.JMP_1_Absolute;
+                case OpCode.CLC_Implied:
+                    return OpCodeStatus.CLC_1_Implied;
+                case OpCode.LDY_Absolute:
+                    return OpCodeStatus.LDY_1_Absolute;
+                case OpCode.ADC_Immediate:
+                    return OpCodeStatus.ADC_1_Immediate;
+                case OpCode.BCC_Relative:
+                    return OpCodeStatus.BCC_1_Relative;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }

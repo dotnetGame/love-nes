@@ -56,7 +56,8 @@ namespace LoveNes
             Dec,
             BitTest,
             Compare,
-            And
+            And,
+            Adc
         }
 
         private struct AddressState
@@ -152,18 +153,28 @@ namespace LoveNes
                     if (_addressState.AffectFlags)
                     {
                         Status.C = _addressState.ResultA >= _addressState.ResultB;
-                        Status.Z = _addressState.ResultA == _addressState.ResultB;
-                        Status.N = _addressState.ResultA - _addressState.ResultB < 0;
+                        UpdateNZ((byte)(_addressState.ResultA - _addressState.ResultB));
                     }
 
                     break;
                 case AddressOperation.And:
                     if (_addressState.AffectFlags)
-                        Status.Z = Registers.A == 0;
+                        Status.Z = _addressState.ResultA == 0;
 
                     _addressState.ResultA &= _addressState.ResultB;
                     if (_addressState.AffectFlags)
                         Status.N = ((_addressState.ResultA & 0x80) >> 7) != 0;
+                    break;
+                case AddressOperation.Adc:
+                    {
+                        var value = (ushort)(_addressState.ResultA + _addressState.ResultB + (Status.C ? 1 : 0));
+                        if (_addressState.AffectFlags)
+                            UpdateCV(_addressState.ResultA, _addressState.ResultB, value);
+                        _addressState.ResultA = (byte)value;
+                        if (_addressState.AffectFlags)
+                            UpdateNZ(_addressState.ResultA);
+                    }
+
                     break;
                 default:
                     throw new ArgumentException(nameof(_addressState.Operation));

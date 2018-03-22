@@ -58,6 +58,7 @@ namespace LoveNes
             ADC,
 
             SEI,
+            CLC,
             CLD
         }
 
@@ -243,6 +244,9 @@ namespace LoveNes
                     return MicroCode.None;
                 case MicroCode.SEI:
                     Status.I = true;
+                    return MicroCode.None;
+                case MicroCode.CLC:
+                    Status.C = false;
                     return MicroCode.None;
                 case MicroCode.CLD:
                     Status.D = false;
