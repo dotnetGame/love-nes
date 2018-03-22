@@ -19,4 +19,8 @@
   <ItemGroup>
     <AdditionalFiles Include="..\..\build\stylecop.json" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Host\" />
+  </ItemGroup>
 </Project>
