@@ -19,6 +19,8 @@ namespace LoveNes
 
             Relative_Jump,
 
+            ORA_1_Immediate,
+
             BNE_1_Relative,
 
             BPL_1_Relative,
@@ -28,6 +30,8 @@ namespace LoveNes
             JSR_1_Absolute,
             JSR_2_Absolute,
             JSR_3_Absolute,
+
+            BMI_1_Relative,
 
             BIT_1_Absolute,
 
@@ -62,6 +66,7 @@ namespace LoveNes
             TXA_1_Implied,
 
             STY_1_Absolute,
+            STY_1_ZeroPage,
 
             BCC_1_Relative,
 
@@ -79,6 +84,7 @@ namespace LoveNes
 
             LDY_1_Immediate,
             LDY_1_Absolute,
+            LDY_1_ZeroPage,
 
             TAX_1_Implied,
 
@@ -97,7 +103,13 @@ namespace LoveNes
 
             CPX_1_Immediate,
 
+            DEC_1_ZeroPage,
+            DEC_2_ZeroPage,
+            DEC_3_ZeroPage,
+
             INC_1_ZeroPage,
+            INC_2_ZeroPage,
+            INC_3_ZeroPage,
 
             INX_1_Implied,
 
@@ -152,6 +164,9 @@ namespace LoveNes
                 case OpCodeStatus.STY_1_Absolute:
                     _addressState.Set(AddressOperand.Y, AddressOperand.None, AddressOperand.Memory, AddressOperation.None, false);
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.STY_1_ZeroPage:
+                    _addressState.Set(AddressOperand.Y, AddressOperand.None, AddressOperand.Memory, AddressOperation.None, false);
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
 
                 case OpCodeStatus.STA_1_ZeroPage:
                     _addressState.Set(AddressOperand.A, AddressOperand.None, AddressOperand.Memory, AddressOperation.None, false);
@@ -179,6 +194,9 @@ namespace LoveNes
                 case OpCodeStatus.LDY_1_Absolute:
                     _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.Y, AddressOperation.None, true);
                     return (MicroCode.Absolute_1, OpCodeStatus.None);
+                case OpCodeStatus.LDY_1_ZeroPage:
+                    _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.Y, AddressOperation.None, true);
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
 
                 case OpCodeStatus.LDX_1_Immediate:
                     _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.X, AddressOperation.None, true);
@@ -198,8 +216,25 @@ namespace LoveNes
                     return (MicroCode.Addressing, OpCodeStatus.None);
 
                 case OpCodeStatus.INC_1_ZeroPage:
-                    _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.Memory, AddressOperation.Inc, true);
-                    return (MicroCode.ZeroPage_1, OpCodeStatus.None);
+                    _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.None, AddressOperation.None, false);
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.INC_2_ZeroPage);
+                case OpCodeStatus.INC_2_ZeroPage:
+                    _addressState.ResultA++;
+                    return (MicroCode.Nop, OpCodeStatus.INC_3_ZeroPage);
+                case OpCodeStatus.INC_3_ZeroPage:
+                    _addressState.Set(AddressOperand.None, AddressOperand.None, AddressOperand.Memory, AddressOperation.None, true);
+                    return (MicroCode.Addressing, OpCodeStatus.None);
+
+                case OpCodeStatus.DEC_1_ZeroPage:
+                    _addressState.Set(AddressOperand.Memory, AddressOperand.None, AddressOperand.None, AddressOperation.None, false);
+                    return (MicroCode.ZeroPage_1, OpCodeStatus.DEC_2_ZeroPage);
+                case OpCodeStatus.DEC_2_ZeroPage:
+                    _addressState.ResultA--;
+                    return (MicroCode.Nop, OpCodeStatus.DEC_3_ZeroPage);
+                case OpCodeStatus.DEC_3_ZeroPage:
+                    _addressState.Set(AddressOperand.None, AddressOperand.None, AddressOperand.Memory, AddressOperation.None, true);
+                    return (MicroCode.Addressing, OpCodeStatus.None);
+
                 case OpCodeStatus.INX_1_Implied:
                     _addressState.Set(AddressOperand.X, AddressOperand.None, AddressOperand.X, AddressOperation.Inc, true);
                     return (MicroCode.Addressing, OpCodeStatus.None);
@@ -285,6 +320,17 @@ namespace LoveNes
                         return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
                     }
 
+                case OpCodeStatus.BMI_1_Relative:
+                    if (Status.N)
+                    {
+                        return (MicroCode.Nop, OpCodeStatus.Relative_Jump);
+                    }
+                    else
+                    {
+                        Registers.PC++;
+                        return (MicroCode.Nop, OpCodeStatus.None);
+                    }
+
                 case OpCodeStatus.CMP_1_ZeroPage:
                     _addressState.Set(AddressOperand.A, AddressOperand.Memory, AddressOperand.None, AddressOperation.Compare, true);
                     return (MicroCode.ZeroPage_1, OpCodeStatus.None);
@@ -298,6 +344,10 @@ namespace LoveNes
 
                 case OpCodeStatus.AND_1_Immediate:
                     _addressState.Set(AddressOperand.A, AddressOperand.Memory, AddressOperand.None, AddressOperation.And, true);
+                    return (MicroCode.Immediate, OpCodeStatus.None);
+
+                case OpCodeStatus.ORA_1_Immediate:
+                    _addressState.Set(AddressOperand.A, AddressOperand.Memory, AddressOperand.None, AddressOperation.Or, true);
                     return (MicroCode.Immediate, OpCodeStatus.None);
 
                 case OpCodeStatus.RTI_1_Implied:

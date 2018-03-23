@@ -57,6 +57,7 @@ namespace LoveNes
             BitTest,
             Compare,
             And,
+            Or,
             Adc
         }
 
@@ -158,12 +159,14 @@ namespace LoveNes
 
                     break;
                 case AddressOperation.And:
-                    if (_addressState.AffectFlags)
-                        Status.Z = _addressState.ResultA == 0;
-
                     _addressState.ResultA &= _addressState.ResultB;
                     if (_addressState.AffectFlags)
-                        Status.N = ((_addressState.ResultA & 0x80) >> 7) != 0;
+                        UpdateNZ(_addressState.ResultA);
+                    break;
+                case AddressOperation.Or:
+                    _addressState.ResultA |= _addressState.ResultB;
+                    if (_addressState.AffectFlags)
+                        UpdateNZ(_addressState.ResultA);
                     break;
                 case AddressOperation.Adc:
                     {

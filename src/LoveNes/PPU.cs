@@ -11,8 +11,6 @@ namespace LoveNes
     {
         ushort IBusSlave.MemoryMapSize => 8;
 
-        public MirroringMode MirroringMode { get; set; }
-
         private PPUStatus _status;
         private PPUController _controller;
         private PPUMask _mask;
@@ -149,7 +147,7 @@ namespace LoveNes
                 switch (_nextTileFetchStatus)
                 {
                     case TileFetchStatus.Nametable_1:
-                        _masterClient.Read(MirrorNametableAddress((ushort)(_nametableBaseAddr + tileId)));
+                        _masterClient.Read((ushort)(_nametableBaseAddr + tileId));
                         _nextTileFetchStatus = TileFetchStatus.Nametable_2;
                         break;
                     case TileFetchStatus.Nametable_2:
@@ -204,39 +202,6 @@ namespace LoveNes
             return (ushort)(_bgPatternTableBaseAddr + _nametable * 16 + pY);
         }
 
-        private ushort MirrorNametableAddress(ushort address)
-        {
-            switch (MirroringMode)
-            {
-                case MirroringMode.Horizontal:
-                    if (Offset(address, 0x2C00, out var offset))
-                        return (ushort)(0x2400 + offset);
-                    else if (Offset(address, 0x2800, out offset))
-                        return (ushort)(0x2400 + offset);
-                    else if (Offset(address, 0x2400, out offset))
-                        return (ushort)(0x2000 + offset);
-                    else
-                        return address;
-                case MirroringMode.Vertical:
-                    if (Offset(address, 0x2C00, out offset))
-                        return (ushort)(0x2400 + offset);
-                    else if (Offset(address, 0x2800, out offset))
-                        return (ushort)(0x2000 + offset);
-                    else if (Offset(address, 0x2400, out offset))
-                        return (ushort)(0x2400 + offset);
-                    else
-                        return address;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(MirroringMode));
-            }
-        }
-
-        private static bool Offset(ushort address, ushort baseAddress, out ushort offset)
-        {
-            offset = (ushort)(address - baseAddress);
-            return address >= baseAddress;
-        }
-
         byte IBusSlave.Read(ushort address)
         {
             if (address == 0x0002)
@@ -284,6 +249,8 @@ namespace LoveNes
                     _ppuAddr |= value;
                 else
                     _ppuAddr = (ushort)(value << 8);
+
+                _ppuAddr %= 0x4000;
                 _writingPPUAddrLow = !_writingPPUAddrLow;
             }
             else if (address == 0x0007)
@@ -291,6 +258,7 @@ namespace LoveNes
                 _masterClient.Value = value;
                 _masterClient.Write(_ppuAddr);
                 _ppuAddr += _controller.I ? (byte)32 : (byte)1;
+                _ppuAddr %= 0x4000;
             }
             else
             {

@@ -9,6 +9,11 @@ namespace LoveNes
         public enum OpCode : byte
         {
             /// <summary>
+            /// Logical Inclusive OR - Immediate
+            /// </summary>
+            ORA_Immediate = 0x09,
+
+            /// <summary>
             /// Branch if Positive
             /// </summary>
             BPL_Relative = 0x10,
@@ -27,6 +32,11 @@ namespace LoveNes
             /// Logical AND - Immediate
             /// </summary>
             AND_Immediate = 0x29,
+
+            /// <summary>
+            /// Branch if Minus
+            /// </summary>
+            BMI_Relative = 0x30,
 
             /// <summary>
             /// Bit Test
@@ -57,6 +67,11 @@ namespace LoveNes
             /// Set Interrupt Disable
             /// </summary>
             SEI_Implied = 0x78,
+
+            /// <summary>
+            /// Store Y Register - Zero Page
+            /// </summary>
+            STY_ZeroPage = 0x84,
 
             /// <summary>
             /// Store A Register - Zero Page
@@ -119,6 +134,11 @@ namespace LoveNes
             LDX_Immediate = 0xA2,
 
             /// <summary>
+            /// Load Y Register - Zero Page
+            /// </summary>
+            LDY_ZeroPage = 0xA4,
+
+            /// <summary>
             /// Load Accumulator - Zero Page
             /// </summary>
             LDA_ZeroPage = 0xA5,
@@ -162,6 +182,11 @@ namespace LoveNes
             /// Compare - Zero Page
             /// </summary>
             CMP_ZeroPage = 0xC5,
+
+            /// <summary>
+            /// Decrement Memory - Zero Page
+            /// </summary>
+            DEC_ZeroPage = 0xC6,
 
             /// <summary>
             /// Increment Y Register
@@ -293,6 +318,16 @@ namespace LoveNes
                     return OpCodeStatus.ADC_1_Immediate;
                 case OpCode.BCC_Relative:
                     return OpCodeStatus.BCC_1_Relative;
+                case OpCode.STY_ZeroPage:
+                    return OpCodeStatus.STY_1_ZeroPage;
+                case OpCode.LDY_ZeroPage:
+                    return OpCodeStatus.LDY_1_ZeroPage;
+                case OpCode.BMI_Relative:
+                    return OpCodeStatus.BMI_1_Relative;
+                case OpCode.DEC_ZeroPage:
+                    return OpCodeStatus.DEC_1_ZeroPage;
+                case OpCode.ORA_Immediate:
+                    return OpCodeStatus.ORA_1_Immediate;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
@@ -310,6 +345,9 @@ namespace LoveNes
                     {
                         _readingOpCode = false;
                         var opCode = (OpCode)_masterClient.Value;
+
+                        if (Registers.PC == 0xD492)
+                            Console.Write(1);
 
                         Console.WriteLine($"0x{Registers.PC - 1:X4} {opCode}");
                         _nextOpCodeStatus = ExecuteOpCode(opCode);

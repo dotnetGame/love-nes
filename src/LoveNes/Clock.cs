@@ -12,6 +12,7 @@ namespace LoveNes
     {
         private readonly List<IClockSink> _clockSinks;
         private readonly List<IClockSink> _clock3Sinks;
+        private ulong _timestamp;
 
         public Clock()
         {
@@ -51,6 +52,8 @@ namespace LoveNes
 
                 for (int i = 0; i < 3; i++)
                     _clock3Sinks.ForEach(o => o.OnTick());
+
+                _timestamp++;
 
                 Thread.Sleep(0);
             }

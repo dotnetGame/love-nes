@@ -9,22 +9,22 @@ namespace LoveNes
     public class Cartridge
     {
         private Mapper0 _mapper;
-        private readonly PPU _ppu;
+        private readonly NametableMirrorController _nametableMirrorController;
 
         public IBusSlave CPUSlave { get; }
 
         public IBusSlave ChrRom { get; }
 
-        public Cartridge(PPU ppu)
+        public Cartridge(NametableMirrorController nametableMirrorController)
         {
-            _ppu = ppu;
+            _nametableMirrorController = nametableMirrorController;
             CPUSlave = new CPUSlaveProvider(this);
             ChrRom = new ChrRomProvider(this);
         }
 
         public void InsertNesFile(NesFile nesFile)
         {
-            _ppu.MirroringMode = nesFile.MirroringMode;
+            _nametableMirrorController.MirroringMode = nesFile.MirroringMode;
             _mapper = new Mapper0(nesFile);
         }
 
