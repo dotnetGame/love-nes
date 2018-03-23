@@ -26,6 +26,8 @@ namespace LoveNes
 
         void IBusSlave.Write(ushort address, byte value)
         {
+            if (address == 0x3C0)
+                Console.Write(1);
             MirrorNametableAddress(address) = value;
         }
 

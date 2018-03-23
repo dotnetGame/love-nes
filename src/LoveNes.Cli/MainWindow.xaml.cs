@@ -47,10 +47,9 @@ namespace LoveNes.Cli
 
         private void MainWindow_Tapped(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            if(_bitmap != null)
+            if (_bitmap != null)
             {
                 _bitmap.Save("bin/test.png");
-                Content = new Image { Source = _bitmap };
             }
         }
 
@@ -65,7 +64,19 @@ namespace LoveNes.Cli
 
             void IHostGraphics.DrawPixel(byte x, byte y, uint rgb)
             {
-                _mainWindow._backBuffer[y * 256 + x] = rgb == 0 ? 0 : 0xFFFF0000;
+                switch (rgb)
+                {
+                    case 1:
+                        rgb = 0xFFFF0000;
+                        break;
+                    case 2:
+                        rgb = 0xFF00FF00;
+                        break;
+                    case 3:
+                        rgb = 0xFF0000FF;
+                        break;
+                }
+                _mainWindow._backBuffer[y * 256 + x] = rgb;
             }
 
             unsafe void IHostGraphics.Flip()
@@ -88,9 +99,13 @@ namespace LoveNes.Cli
 
                 var text = str.ToString();
 
-                fixed(uint* p = _mainWindow._backBuffer)
+                fixed (uint* p = _mainWindow._backBuffer)
                 {
-                    _mainWindow._bitmap = new Bitmap(Avalonia.Platform.PixelFormat.Bgra8888, (IntPtr)p, 256, 240, 256 * sizeof(uint));
+                    var bitmap = new Bitmap(Avalonia.Platform.PixelFormat.Bgra8888, (IntPtr)p, 256, 240, 256 * sizeof(uint));
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        _mainWindow.Content = new Image { Source = bitmap };
+                    });
                 }
             }
         }

@@ -132,7 +132,7 @@ namespace LoveNes
 
         private TileFetchStatus _nextTileFetchStatus;
         private byte _nametable;
-        /*private byte _attribute;*/
+        private byte _attribute;
         private byte _bitmapLow;
         private byte _bitmapHigh;
 
@@ -143,6 +143,10 @@ namespace LoveNes
                 var tX = (byte)(_cntTile % 32);
                 var tY = (byte)(_cntTile / 32 / 8);
                 var tileId = tY * 32 + tX;
+                var bX = tX / 2;
+                var bY = tY / 2;
+                var blockId = bY * 16 + bX;
+                var attrShift = bX % 4 * 2;
 
                 switch (_nextTileFetchStatus)
                 {
@@ -155,9 +159,11 @@ namespace LoveNes
                         _nextTileFetchStatus = TileFetchStatus.Attribute_1;
                         break;
                     case TileFetchStatus.Attribute_1:
+                        _masterClient.Read((ushort)(0x23C0 + blockId / 4));
                         _nextTileFetchStatus = TileFetchStatus.Attribute_2;
                         break;
                     case TileFetchStatus.Attribute_2:
+                        _attribute = (byte)((_masterClient.Value & (0b11 << attrShift)) >> attrShift);
                         _nextTileFetchStatus = TileFetchStatus.BitmapLow_1;
                         break;
                     case TileFetchStatus.BitmapLow_1:
@@ -182,23 +188,43 @@ namespace LoveNes
             }
         }
 
+        private static readonly uint[] _nesRgb = new uint[]
+        {
+            0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400,
+            0x503000, 0x007800, 0x006800, 0x005800, 0x004058, 0x000000, 0x000000, 0x000000,
+            0xBCBCBC, 0x0078F8, 0x0058F8, 0x6844FC, 0xD800CC, 0xE40058, 0xF83800, 0xE45C10,
+            0xAC7C00, 0x00B800, 0x00A800, 0x00A844, 0x008888, 0x000000, 0x000000, 0x000000,
+            0xF8F8F8, 0x3CBCFC, 0x6888FC, 0x9878F8, 0xF878F8, 0xF85898, 0xF87858, 0xFCA044,
+            0xF8B800, 0xB8F818, 0x58D854, 0x58F898, 0x00E8D8, 0x787878, 0x000000, 0x000000,
+            0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8,
+            0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 0x00FCFC, 0xF8D8F8, 0x000000, 0x000000
+        };
+
         private void OutputPixel()
         {
             var tX = (byte)(_cntTile % 32);
+            var tY = (byte)(_cntTile / 32 / 8);
             var pY = (byte)(_cntTile / 32);
+            var bX = tX / 2;
+            var bY = tY / 2;
 
             for (byte x = 0; x < 8; x++)
             {
-                var mask = 1 << (7 - x);
-                var pixel = (_bitmapLow & mask) | ((_bitmapHigh & mask) << 1);
+                var shift = 7 - x;
+                var mask = 1 << shift;
+                var paletteId = ((_bitmapLow & mask) | ((_bitmapHigh & mask) << 1)) >> shift;
 
-                _hostGraphics.DrawPixel((byte)(tX * 8 + x), pY, (uint)pixel);
+                _masterClient.Read((ushort)(0x3F00 + _attribute * 4 + paletteId));
+                var palette = _masterClient.Value;
+
+                _hostGraphics.DrawPixel((byte)(tX * 8 + x), pY, (uint)(_nesRgb[palette] | 0xFF000000));
             }
         }
 
         private ushort GetBgPatternTableAddress()
         {
-            var pY = (byte)(_scanline % 8);
+            var pY = (byte)(_cntTile / 32);
+            pY %= 8;
             return (ushort)(_bgPatternTableBaseAddr + _nametable * 16 + pY);
         }
 
@@ -250,7 +276,6 @@ namespace LoveNes
                 else
                     _ppuAddr = (ushort)(value << 8);
 
-                _ppuAddr %= 0x4000;
                 _writingPPUAddrLow = !_writingPPUAddrLow;
             }
             else if (address == 0x0007)
@@ -258,7 +283,6 @@ namespace LoveNes
                 _masterClient.Value = value;
                 _masterClient.Write(_ppuAddr);
                 _ppuAddr += _controller.I ? (byte)32 : (byte)1;
-                _ppuAddr %= 0x4000;
             }
             else
             {
