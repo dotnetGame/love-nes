@@ -12,6 +12,10 @@ namespace LoveNes
         private readonly SortedList<ushort, (IBusSlave slave, ushort size)> _slavesRead;
         private readonly SortedList<ushort, (IBusSlave slave, ushort size)> _slavesWrite;
 
+        private bool _dirty = true;
+        private readonly (IBusSlave slave, ushort offset)?[] _readMap;
+        private readonly (IBusSlave slave, ushort offset)?[] _writeMap;
+
         /// <summary>
         /// Master 外设客户端
         /// </summary>
@@ -26,6 +30,9 @@ namespace LoveNes
         {
             _slavesRead = new SortedList<ushort, (IBusSlave slave, ushort size)>(Comparer<ushort>.Create((x, y) => y - x));
             _slavesWrite = new SortedList<ushort, (IBusSlave slave, ushort size)>(Comparer<ushort>.Create((x, y) => y - x));
+
+            _readMap = new (IBusSlave slave, ushort offset)?[0x10000];
+            _writeMap = new (IBusSlave slave, ushort offset)?[0x10000];
         }
 
         void IBusMasterClient.Acquire()
@@ -83,6 +90,8 @@ namespace LoveNes
                 AddSlave(_slavesRead);
             if (slaveAccess.HasFlag(SlaveAccess.Write))
                 AddSlave(_slavesWrite);
+
+            _dirty = true;
         }
 
         [Flags]
@@ -92,12 +101,31 @@ namespace LoveNes
             Write = 0x2
         }
 
+        private (IBusSlave slave, ushort offset) FindSlave(ushort address, SlaveAccess slaveAccess)
+        {
+            if (_dirty)
+            {
+                for (int i = 0; i <= 0xFFFF; i++)
+                {
+                    _readMap[i] = FindSlaveRaw((ushort)i, SlaveAccess.Read);
+                    _writeMap[i] = FindSlaveRaw((ushort)i, SlaveAccess.Write);
+                }
+
+                _dirty = false;
+            }
+
+            if (slaveAccess == SlaveAccess.Read)
+                return _readMap[address] ?? throw new AccessViolationException($"cannot find slave in address: 0x{address:X}.");
+            else
+                return _writeMap[address] ?? throw new AccessViolationException($"cannot find slave in address: 0x{address:X}.");
+        }
+
         /// <summary>
         /// 片选
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns>选中的 Slave 外设和内存地址偏移</returns>
-        private (IBusSlave slave, ushort offset) FindSlave(ushort address, SlaveAccess slaveAccess)
+        private (IBusSlave slave, ushort offset)? FindSlaveRaw(ushort address, SlaveAccess slaveAccess)
         {
             var slaves = slaveAccess == SlaveAccess.Read ? _slavesRead : _slavesWrite;
             foreach (var slave in slaves)
@@ -105,16 +133,12 @@ namespace LoveNes
                 if (slave.Key <= address)
                 {
                     var offset = (ushort)(address - slave.Key);
-                    if (offset >= slave.Value.size)
-                    {
-                        throw new AccessViolationException($"address: 0x{address:X} is out of slave memory range.");
-                    }
-
-                    return (slave.Value.slave, offset);
+                    if (offset < slave.Value.size)
+                        return (slave.Value.slave, offset);
                 }
             }
 
-            throw new AccessViolationException($"cannot find slave in address: 0x{address:X}.");
+            return null;
         }
 
         private class DummySlave : IBusSlave

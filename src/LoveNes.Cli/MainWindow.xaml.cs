@@ -14,11 +14,12 @@ namespace LoveNes.Cli
     public class MainWindow : Window
     {
         private readonly NesSystem _nesSystem;
-        private readonly uint[] _backBuffer;
-        private Bitmap _bitmap;
+        private uint[] _frontBuffer;
+        private uint[] _backBuffer;
 
         public MainWindow()
         {
+            _frontBuffer = new uint[256 * 240];
             _backBuffer = new uint[256 * 240];
             _nesSystem = new NesSystem(new HostGraphics(this));
 
@@ -37,20 +38,10 @@ namespace LoveNes.Cli
             theme.TryGetResource("Button", out _);
             AvaloniaXamlLoader.Load(this);
 
-            this.Tapped += MainWindow_Tapped;
-
             var file = await NesFile.FromStream(File.OpenRead("lj65.nes")).ConfigureAwait(false);
 
             _nesSystem.Cartridge.InsertNesFile(file);
             _nesSystem.PowerUp();
-        }
-
-        private void MainWindow_Tapped(object sender, Avalonia.Interactivity.RoutedEventArgs e)
-        {
-            if (_bitmap != null)
-            {
-                _bitmap.Save("bin/test.png");
-            }
         }
 
         private class HostGraphics : IHostGraphics
@@ -64,49 +55,23 @@ namespace LoveNes.Cli
 
             void IHostGraphics.DrawPixel(byte x, byte y, uint rgb)
             {
-                switch (rgb)
-                {
-                    case 1:
-                        rgb = 0xFFFF0000;
-                        break;
-                    case 2:
-                        rgb = 0xFF00FF00;
-                        break;
-                    case 3:
-                        rgb = 0xFF0000FF;
-                        break;
-                }
                 _mainWindow._backBuffer[y * 256 + x] = rgb;
             }
 
             unsafe void IHostGraphics.Flip()
             {
-                var str = new StringBuilder();
+                var buffer = _mainWindow._backBuffer;
+                _mainWindow._backBuffer = _mainWindow._frontBuffer;
+                _mainWindow._frontBuffer = _mainWindow._backBuffer;
 
-                for (int y = 0; y < 240; y++)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    for (int x = 0; x < 256; x++)
+                    fixed (uint* p = _mainWindow._frontBuffer)
                     {
-                        var pixel = _mainWindow._backBuffer[y * 256 + x] & 0xFFFFFF;
-                        if (pixel == 0)
-                            str.Append(' ');
-                        else
-                            str.Append('x');
-                    }
-
-                    str.AppendLine();
-                }
-
-                var text = str.ToString();
-
-                fixed (uint* p = _mainWindow._backBuffer)
-                {
-                    var bitmap = new Bitmap(Avalonia.Platform.PixelFormat.Bgra8888, (IntPtr)p, 256, 240, 256 * sizeof(uint));
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
+                        var bitmap = new Bitmap(Avalonia.Platform.PixelFormat.Bgra8888, (IntPtr)p, 256, 240, 256 * sizeof(uint));
                         _mainWindow.Content = new Image { Source = bitmap };
-                    });
-                }
+                    }
+                });
             }
         }
     }

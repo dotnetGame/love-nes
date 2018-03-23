@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -12,12 +13,17 @@ namespace LoveNes
     {
         private readonly List<IClockSink> _clockSinks;
         private readonly List<IClockSink> _clock3Sinks;
-        private ulong _timestamp;
 
-        public Clock()
+        private readonly Stopwatch _stopwatch;
+        private long _actualAge;
+        private readonly uint _frequency;
+
+        public Clock(uint frequency)
         {
             _clockSinks = new List<IClockSink>();
             _clock3Sinks = new List<IClockSink>();
+            _frequency = frequency;
+            _stopwatch = new Stopwatch();
         }
 
         /// <summary>
@@ -46,16 +52,28 @@ namespace LoveNes
             _clockSinks.ForEach(o => o.OnPowerUp());
             _clock3Sinks.ForEach(o => o.OnPowerUp());
 
+            _actualAge = 0;
+            _stopwatch.Restart();
+
             while (true)
             {
-                _clockSinks.ForEach(o => o.OnTick());
+                var expectedAge = _stopwatch.ElapsedMilliseconds * _frequency / 1000;
+                var updateTimes = expectedAge - _actualAge;
+                if (updateTimes <= 0)
+                {
+                    Thread.Sleep(1);
+                }
 
-                for (int i = 0; i < 3; i++)
-                    _clock3Sinks.ForEach(o => o.OnTick());
+                while (updateTimes > 0)
+                {
+                    _clockSinks.ForEach(o => o.OnTick());
 
-                _timestamp++;
+                    for (int i = 0; i < 3; i++)
+                        _clock3Sinks.ForEach(o => o.OnTick());
 
-                Thread.Sleep(0);
+                    _actualAge++;
+                    updateTimes--;
+                }
             }
         }
 

@@ -346,10 +346,7 @@ namespace LoveNes
                         _readingOpCode = false;
                         var opCode = (OpCode)_masterClient.Value;
 
-                        if (Registers.PC == 0xD492)
-                            Console.Write(1);
-
-                        Console.WriteLine($"0x{Registers.PC - 1:X4} {opCode}");
+                        // Console.WriteLine($"0x{Registers.PC - 1:X4} {opCode}");
                         _nextOpCodeStatus = ExecuteOpCode(opCode);
                     }
                     else if (_interruptType != null)

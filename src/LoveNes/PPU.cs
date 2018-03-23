@@ -110,6 +110,7 @@ namespace LoveNes
                 _status.V = true;
                 if (_controller.V)
                     _interruptReceiver.Interrupt(InterruptType.NMI);
+
                 _hostGraphics.Flip();
             }
         }

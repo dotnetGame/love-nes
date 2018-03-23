@@ -30,7 +30,7 @@ namespace LoveNes
 
         public NesSystem(IHostGraphics hostGraphics)
         {
-            _clock = new Clock();
+            _clock = new Clock(1789773);
             _cpuBus = new Bus();
 
             // CPU
