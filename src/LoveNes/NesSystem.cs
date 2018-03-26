@@ -76,6 +76,12 @@ namespace LoveNes
             // APU
             _cpuBus.AddSlave(0x4000, _apu);
             _cpuBus.AddSlave(0x4015, _apu.Status);
+
+            // Joystick
+            var joystick = new Joystick();
+            _cpuBus.AddSlave(0x4016, joystick);
+            _cpuBus.AddSlave(0x4017, joystick, Bus.SlaveAccess.Read);
+
             _cpuBus.AddSlave(0x4017, _apu.FrameCounter, Bus.SlaveAccess.Write);
 
             // OAM DMA

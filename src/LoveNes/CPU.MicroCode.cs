@@ -90,7 +90,7 @@ namespace LoveNes
                     return MicroCode.Absolute_2;
                 case MicroCode.Absolute_2:
                     _masterClient.Read(Registers.PC++);
-                    _addressState.MemoryAddress = (ushort)((_masterClient.Value << 8) | (_addressState.MemoryAddress & 0xFF));
+                    _addressState.MemoryAddress |= (ushort)(_masterClient.Value << 8);
                     return MicroCode.Absolute_3;
                 case MicroCode.Absolute_3:
                     DispatchAddressing();
@@ -121,10 +121,23 @@ namespace LoveNes
                     return MicroCode.AbsoluteX_2;
                 case MicroCode.AbsoluteX_2:
                     _masterClient.Read(Registers.PC++);
-                    _addressState.MemoryAddress = (ushort)((_masterClient.Value << 8) | (_addressState.MemoryAddress & 0xFF));
+                    _addressState.MemoryAddress |= (ushort)(_masterClient.Value << 8);
                     return MicroCode.AbsoluteX_3;
                 case MicroCode.AbsoluteX_3:
                     _addressState.MemoryAddress += Registers.X;
+                    DispatchAddressing();
+                    return MicroCode.None;
+
+                case MicroCode.AbsoluteY_1:
+                    _masterClient.Read(Registers.PC++);
+                    _addressState.MemoryAddress = _masterClient.Value;
+                    return MicroCode.AbsoluteX_2;
+                case MicroCode.AbsoluteY_2:
+                    _masterClient.Read(Registers.PC++);
+                    _addressState.MemoryAddress |= (ushort)(_masterClient.Value << 8);
+                    return MicroCode.AbsoluteX_3;
+                case MicroCode.AbsoluteY_3:
+                    _addressState.MemoryAddress += Registers.Y;
                     DispatchAddressing();
                     return MicroCode.None;
 
@@ -138,7 +151,7 @@ namespace LoveNes
                     return MicroCode.IndirectY_3;
                 case MicroCode.IndirectY_3:
                     _masterClient.Read((byte)(_addressState.MemoryAddress8 + 1));
-                    _addressState.MemoryAddress = (ushort)((_masterClient.Value << 8) | (_addressState.MemoryAddress & 0xFF));
+                    _addressState.MemoryAddress |= (ushort)(_masterClient.Value << 8);
                     return MicroCode.IndirectY_4;
                 case MicroCode.IndirectY_4:
                     _addressState.MemoryAddress += Registers.Y;
@@ -181,21 +194,6 @@ namespace LoveNes
                     break;
                 case MicroCode.Absolute_3:
                     _masterClient.Read((ushort)(_addressResult | _addressResult2 << 8));
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.None;
-                    break;
-                case MicroCode.AbsoluteY_1:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_2;
-                    break;
-                case MicroCode.AbsoluteY_2:
-                    _masterClient.Read(Registers.PC++);
-                    _addressResult2 = _masterClient.Value;
-                    _nextMicroCode = MicroCode.AbsoluteX_3;
-                    break;
-                case MicroCode.AbsoluteY_3:
-                    _masterClient.Read((ushort)((_addressResult | _addressResult2 << 8) + Registers.Y));
                     _addressResult = _masterClient.Value;
                     _nextMicroCode = MicroCode.None;
                     break;

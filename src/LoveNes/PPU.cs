@@ -146,8 +146,10 @@ namespace LoveNes
                 var tileId = tY * 32 + tX;
                 var bX = tX / 2;
                 var bY = tY / 2;
-                var blockId = bY * 16 + bX;
-                var attrShift = bX % 4 * 2;
+                var aX = bX / 2;
+                var aY = bY / 2;
+                var aId = aY * 8 + aX;
+                var attrShift = (bY % 2 * 2 + bX % 2) * 2;
 
                 switch (_nextTileFetchStatus)
                 {
@@ -160,7 +162,7 @@ namespace LoveNes
                         _nextTileFetchStatus = TileFetchStatus.Attribute_1;
                         break;
                     case TileFetchStatus.Attribute_1:
-                        _masterClient.Read((ushort)(0x23C0 + blockId / 4));
+                        _masterClient.Read((ushort)(0x23C0 + aId));
                         _nextTileFetchStatus = TileFetchStatus.Attribute_2;
                         break;
                     case TileFetchStatus.Attribute_2:
@@ -206,8 +208,6 @@ namespace LoveNes
             var tX = (byte)(_cntTile % 32);
             var tY = (byte)(_cntTile / 32 / 8);
             var pY = (byte)(_cntTile / 32);
-            var bX = tX / 2;
-            var bY = tY / 2;
 
             for (byte x = 0; x < 8; x++)
             {
@@ -265,9 +265,9 @@ namespace LoveNes
             else if (address == 0x0005)
             {
                 if (_writingCameraPosY)
-                    _cameraPosX = value;
-                else
                     _cameraPosY = value;
+                else
+                    _cameraPosX = value;
                 _writingCameraPosY = !_writingCameraPosY;
             }
             else if (address == 0x0006)

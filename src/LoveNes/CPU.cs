@@ -58,7 +58,10 @@ namespace LoveNes
             Compare,
             And,
             Or,
-            Adc
+            Adc,
+            Rol,
+            Asl,
+            Xor
         }
 
         private struct AddressState
@@ -145,8 +148,8 @@ namespace LoveNes
                     if (_addressState.AffectFlags)
                     {
                         Status.Z = (_addressState.ResultA & _addressState.ResultB) == 0;
-                        Status.N = ((_addressState.ResultB & 0x80) >> 7) != 0;
-                        Status.V = ((_addressState.ResultB & 0x40) >> 6) != 0;
+                        Status.N = (_addressState.ResultB & 0x80) != 0;
+                        Status.V = (_addressState.ResultB & 0x40) != 0;
                     }
 
                     break;
@@ -170,7 +173,7 @@ namespace LoveNes
                     break;
                 case AddressOperation.Adc:
                     {
-                        var value = (ushort)(_addressState.ResultA + _addressState.ResultB + (Status.C ? 1 : 0));
+                        var value = (short)(_addressState.ResultA + _addressState.ResultB + (Status.C ? 1 : 0));
                         if (_addressState.AffectFlags)
                             UpdateCV(_addressState.ResultA, _addressState.ResultB, value);
                         _addressState.ResultA = (byte)value;
@@ -178,6 +181,32 @@ namespace LoveNes
                             UpdateNZ(_addressState.ResultA);
                     }
 
+                    break;
+                case AddressOperation.Rol:
+                    {
+                        var c = Status.C;
+                        if (_addressState.AffectFlags)
+                            Status.C = (_addressState.ResultA & 0x80) != 0;
+                        _addressState.ResultA = (byte)((_addressState.ResultA << 1) | (Status.C ? 1 : 0));
+                        if (_addressState.AffectFlags)
+                            UpdateNZ(_addressState.ResultA);
+                    }
+
+                    break;
+                case AddressOperation.Asl:
+                    {
+                        if (_addressState.AffectFlags)
+                            Status.C = (_addressState.ResultA & 0x80) != 0;
+                        _addressState.ResultA = (byte)(_addressState.ResultA << 1);
+                        if (_addressState.AffectFlags)
+                            UpdateNZ(_addressState.ResultA);
+                    }
+
+                    break;
+                case AddressOperation.Xor:
+                    _addressState.ResultA ^= _addressState.ResultB;
+                    if (_addressState.AffectFlags)
+                        UpdateNZ(_addressState.ResultA);
                     break;
                 default:
                     throw new ArgumentException(nameof(_addressState.Operation));
@@ -212,7 +241,7 @@ namespace LoveNes
             }
         }
 
-        private void UpdateCV(byte a, byte b, ushort result)
+        private void UpdateCV(byte a, byte b, short result)
         {
             Status.C = result > 0xFF;
             Status.V = (~(a ^ b) & (a ^ b) & 0x80) != 0;
@@ -220,7 +249,7 @@ namespace LoveNes
 
         private void UpdateNZ(byte result)
         {
-            Status.N = ((result & 0x80) >> 7) != 0;
+            Status.N = (result & 0x80) != 0;
             Status.Z = result == 0;
         }
 

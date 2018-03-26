@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2003
+VisualStudioVersion = 15.0.27130.2027
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LoveNes", "LoveNes\LoveNes.csproj", "{BD55CBAB-8977-4225-9C4E-35D46475D09D}"
 EndProject
@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{BDC4A6
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Clients", "Clients", "{CB36244F-4840-4FA7-82E9-AEDFC3932A20}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoveNes.Cli", "LoveNes.Cli\LoveNes.Cli.csproj", "{813C5012-66D6-4B1F-8116-37BD03B51D66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LoveNes.Cli", "LoveNes.Cli\LoveNes.Cli.csproj", "{813C5012-66D6-4B1F-8116-37BD03B51D66}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

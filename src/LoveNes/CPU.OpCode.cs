@@ -9,6 +9,16 @@ namespace LoveNes
         public enum OpCode : byte
         {
             /// <summary>
+            /// Logical Inclusive OR - Zero Page
+            /// </summary>
+            ORA_ZeroPage = 0x05,
+
+            /// <summary>
+            /// Arithmetic Shift Left - Zero Page
+            /// </summary>
+            ASL_ZeroPage = 0x06,
+
+            /// <summary>
             /// Logical Inclusive OR - Immediate
             /// </summary>
             ORA_Immediate = 0x09,
@@ -29,6 +39,11 @@ namespace LoveNes
             JSR_Absolute = 0x20,
 
             /// <summary>
+            /// Rotate Left - Zero Page
+            /// </summary>
+            ROL_ZeroPage = 0x26,
+
+            /// <summary>
             /// Logical AND - Immediate
             /// </summary>
             AND_Immediate = 0x29,
@@ -44,9 +59,19 @@ namespace LoveNes
             BIT_Absolute = 0x2C,
 
             /// <summary>
+            /// Logical AND - Zero Page X
+            /// </summary>
+            AND_ZeroPageX = 0x35,
+
+            /// <summary>
             /// Return from Interrupt
             /// </summary>
             RTI_Implied = 0x40,
+
+            /// <summary>
+            /// Exclusive OR - Immediate
+            /// </summary>
+            EOR_Immediate = 0x49,
 
             /// <summary>
             /// Jump - Absolute
@@ -84,6 +109,11 @@ namespace LoveNes
             STX_ZeroPage = 0x86,
 
             /// <summary>
+            /// Decrement Y Register
+            /// </summary>
+            DEY_Implied = 0x88,
+
+            /// <summary>
             /// Transfer X to Accumulator
             /// </summary>
             TXA_Implied = 0x8A,
@@ -112,6 +142,11 @@ namespace LoveNes
             /// Store Accumulator - Zero Page X
             /// </summary>
             STA_ZeroPageX = 0x95,
+
+            /// <summary>
+            /// Transfer Transfer Y to Accumulator
+            /// </summary>
+            TYA_Implied = 0x98,
 
             /// <summary>
             /// Transfer X to Stack Pointer
@@ -174,9 +209,24 @@ namespace LoveNes
             LDA_IndirectY = 0xB1,
 
             /// <summary>
+            /// Load Accumulator - Zero Page X
+            /// </summary>
+            LDA_ZeroPageX = 0xB5,
+
+            /// <summary>
+            /// Load Accumulator - Absolute Y
+            /// </summary>
+            LDA_AbsoluteY = 0xB9,
+
+            /// <summary>
             /// Load Accumulator - Absolute X
             /// </summary>
             LDA_AbsoluteX = 0xBD,
+
+            /// <summary>
+            /// Compare Y Register - Immediate
+            /// </summary>
+            CPY_Immediate = 0xC0,
 
             /// <summary>
             /// Compare - Zero Page
@@ -194,6 +244,11 @@ namespace LoveNes
             INY_Implied = 0xC8,
 
             /// <summary>
+            /// Compare - Immediate
+            /// </summary>
+            CMP_Immediate = 0xC9,
+
+            /// <summary>
             /// Decrement X Register
             /// </summary>
             DEX_Implied = 0xCA,
@@ -207,6 +262,11 @@ namespace LoveNes
             /// Branch if Not Equal
             /// </summary>
             BNE_Relative = 0xD0,
+
+            /// <summary>
+            /// Compare - Zero Page X
+            /// </summary>
+            CMP_ZeroPageX = 0xD5,
 
             /// <summary>
             /// Clear Decimal Mode
@@ -328,6 +388,30 @@ namespace LoveNes
                     return OpCodeStatus.DEC_1_ZeroPage;
                 case OpCode.ORA_Immediate:
                     return OpCodeStatus.ORA_1_Immediate;
+                case OpCode.CMP_Immediate:
+                    return OpCodeStatus.CMP_1_Immediate;
+                case OpCode.ROL_ZeroPage:
+                    return OpCodeStatus.ROL_1_ZeroPage;
+                case OpCode.LDA_ZeroPageX:
+                    return OpCodeStatus.LDA_1_ZeroPageX;
+                case OpCode.CMP_ZeroPageX:
+                    return OpCodeStatus.CMP_1_ZeroPageX;
+                case OpCode.EOR_Immediate:
+                    return OpCodeStatus.EOR_1_Immediate;
+                case OpCode.AND_ZeroPageX:
+                    return OpCodeStatus.AND_1_ZeroPageX;
+                case OpCode.ORA_ZeroPage:
+                    return OpCodeStatus.ORA_1_ZeroPage;
+                case OpCode.ASL_ZeroPage:
+                    return OpCodeStatus.ASL_1_ZeroPage;
+                case OpCode.DEY_Implied:
+                    return OpCodeStatus.DEY_1_Implied;
+                case OpCode.LDA_AbsoluteY:
+                    return OpCodeStatus.LDA_1_AbsoluteY;
+                case OpCode.CPY_Immediate:
+                    return OpCodeStatus.CPY_1_Immediate;
+                case OpCode.TYA_Implied:
+                    return OpCodeStatus.TYA_1_Implied;
                 default:
                     throw new InvalidProgramException($"invalid op code: 0x{opCode:X}.");
             }
